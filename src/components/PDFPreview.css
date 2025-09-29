@@ -1,0 +1,150 @@
+/* PDF Preview Styles - Scaled down version of actual PDF styling */
+.pdf-preview-content {
+  font-size: 9px;
+  line-height: 1.4;
+  color: #000;
+  font-family: 'system-ui', -apple-system, sans-serif;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 4px;
+}
+
+/* Reset any default margins for cleaner preview */
+.pdf-preview-content * {
+  margin: 0;
+  padding: 0;
+}
+
+/* Headings */
+.pdf-preview-content h1 {
+  font-size: 14px !important;
+  font-weight: bold !important;
+  margin: 4px 0 !important;
+  line-height: 1.2 !important;
+  color: #000 !important;
+  display: block !important;
+}
+
+.pdf-preview-content h2 {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  margin: 3px 0 !important;
+  line-height: 1.2 !important;
+  color: #000 !important;
+  display: block !important;
+}
+
+.pdf-preview-content h3 {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  margin: 3px 0 !important;
+  line-height: 1.2 !important;
+  color: #000 !important;
+  display: block !important;
+}
+
+/* Paragraphs */
+.pdf-preview-content p {
+  margin: 2px 0;
+  line-height: 1.3;
+}
+
+/* Text formatting */
+.pdf-preview-content strong,
+.pdf-preview-content b {
+  font-weight: bold !important;
+  color: #000 !important;
+}
+
+.pdf-preview-content em,
+.pdf-preview-content i {
+  font-style: italic !important;
+  color: #000 !important;
+}
+
+.pdf-preview-content u {
+  text-decoration: underline !important;
+  color: #000 !important;
+}
+
+/* Lists */
+.pdf-preview-content ul {
+  margin: 3px 0 !important;
+  padding-left: 10px !important;
+  list-style-type: disc !important;
+  display: block !important;
+}
+
+.pdf-preview-content ol {
+  margin: 3px 0 !important;
+  padding-left: 10px !important;
+  list-style-type: decimal !important;
+  display: block !important;
+}
+
+.pdf-preview-content li {
+  margin: 1px 0 !important;
+  line-height: 1.3 !important;
+  display: list-item !important;
+  color: #000 !important;
+}
+
+/* Nested lists */
+.pdf-preview-content ul ul,
+.pdf-preview-content ol ol,
+.pdf-preview-content ul ol,
+.pdf-preview-content ol ul {
+  margin: 0;
+  padding-left: 10px;
+}
+
+/* Blockquotes */
+.pdf-preview-content blockquote {
+  border-left: 2px solid #ccc;
+  padding-left: 6px;
+  margin: 2px 0;
+  font-style: italic;
+  color: #666;
+}
+
+/* Code */
+.pdf-preview-content code {
+  background-color: #f5f5f5;
+  padding: 1px 2px;
+  border-radius: 2px;
+  font-family: 'Courier New', monospace;
+  font-size: 7px;
+}
+
+/* Ensure text doesn't overflow */
+.pdf-preview-content * {
+  word-wrap: break-word;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+/* Text alignment styles for preview */
+.pdf-preview-content .ql-align-left {
+  text-align: left !important;
+}
+
+.pdf-preview-content .ql-align-center {
+  text-align: center !important;
+}
+
+.pdf-preview-content .ql-align-right {
+  text-align: right !important;
+}
+
+.pdf-preview-content .ql-align-justify {
+  text-align: justify !important;
+}
+
+/* Remove default margins that might cause issues in small preview */
+.pdf-preview-content > *:first-child {
+  margin-top: 0;
+}
+
+.pdf-preview-content > *:last-child {
+  margin-bottom: 0;
+}

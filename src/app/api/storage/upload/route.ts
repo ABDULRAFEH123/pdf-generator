@@ -1,14 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
+import sharp from 'sharp'
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Upload request received')
+
     const formData = await request.formData()
     const file = formData.get('file') as File
     const type = formData.get('type') as string // 'header' or 'footer'
     const pdfWidth = parseInt(formData.get('pdfWidth') as string)
 
+    console.log('Upload request received:', {
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type,
+      type,
+      pdfWidth
+    })
+
     if (!file || !type || !pdfWidth) {
+      console.error('Missing required fields:', { file: !!file, type, pdfWidth })
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -31,23 +43,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate dimensions
-    const expectedHeight = type === 'header' ? 300 : 200
-    const image = new Image()
-    const imageUrl = URL.createObjectURL(file)
+    // Validate dimensions using sharp
+    const expectedHeight = type === 'header' ? 300 : 300
     
-    const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-      image.onload = () => {
-        resolve({ width: image.width, height: image.height })
-        URL.revokeObjectURL(imageUrl)
+    try {
+      const buffer = await file.arrayBuffer()
+      const imageInfo = await sharp(buffer).metadata()
+      
+      if (imageInfo.width !== pdfWidth || imageInfo.height !== expectedHeight) {
+        return NextResponse.json(
+          { error: `${type} image must be exactly ${pdfWidth} × ${expectedHeight} pixels. Current: ${imageInfo.width} × ${imageInfo.height}` },
+          { status: 400 }
+        )
       }
-      image.onerror = reject
-      image.src = imageUrl
-    })
-
-    if (dimensions.width !== pdfWidth || dimensions.height !== expectedHeight) {
+    } catch (sharpError) {
+      console.error('Sharp error:', sharpError)
       return NextResponse.json(
-        { error: `${type} image must be exactly ${pdfWidth} × ${expectedHeight} pixels. Current: ${dimensions.width} × ${dimensions.height}` },
+        { error: 'Invalid image file' },
         { status: 400 }
       )
     }
@@ -57,18 +69,29 @@ export async function POST(request: NextRequest) {
     const fileName = `${type}_${Date.now()}.${fileExt}`
     const filePath = `images/${fileName}`
 
-    const { error: uploadError } = await supabase.storage
+    console.log('Attempting to upload to:', filePath)
+
+    // Check if bucket exists first
+    const { data: buckets, error: bucketError } = await supabaseAdmin.storage.listBuckets()
+    console.log('Available buckets:', buckets?.map(b => b.name))
+    
+    if (bucketError) {
+      console.error('Error listing buckets:', bucketError)
+    }
+
+    const { error: uploadError } = await supabaseAdmin.storage
       .from('pdf-images')
       .upload(filePath, file)
 
     if (uploadError) {
+      console.error('Supabase upload error:', uploadError)
       return NextResponse.json(
-        { error: 'Failed to upload image' },
+        { error: `Failed to upload image: ${uploadError.message}` },
         { status: 500 }
       )
     }
 
-    const { data } = supabase.storage
+    const { data } = supabaseAdmin.storage
       .from('pdf-images')
       .getPublicUrl(filePath)
 
@@ -76,8 +99,8 @@ export async function POST(request: NextRequest) {
       success: true,
       url: data.publicUrl,
       dimensions: {
-        width: dimensions.width,
-        height: dimensions.height
+        width: pdfWidth,
+        height: expectedHeight
       }
     })
   } catch (error) {

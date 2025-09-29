@@ -133,3 +133,7 @@ CREATE TRIGGER update_pdf_documents_updated_at
 CREATE TRIGGER update_user_profiles_updated_at
   BEFORE UPDATE ON user_profiles
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Storage policies must be set up through the Supabase dashboard
+-- Go to Storage > pdf-images bucket > Policies tab
+-- Create policies for INSERT, SELECT, UPDATE, DELETE operations

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('presets')
       .select(`
         *,
@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log('Preset creation request:', body)
     const { name, pdf_size_id, header_image_url, footer_image_url, header_height, footer_height, user_id } = body
 
     if (!name || !pdf_size_id || !header_image_url || !footer_image_url || !user_id) {
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('presets')
       .insert([{
         name,
@@ -62,15 +63,16 @@ export async function POST(request: NextRequest) {
         header_image_url,
         footer_image_url,
         header_height: header_height || 300,
-        footer_height: footer_height || 200,
+        footer_height: footer_height || 300,
         user_id
       }])
       .select()
       .single()
 
     if (error) {
+      console.error('Preset creation error:', error)
       return NextResponse.json(
-        { error: 'Failed to create preset' },
+        { error: `Failed to create preset: ${error.message}` },
         { status: 500 }
       )
     }

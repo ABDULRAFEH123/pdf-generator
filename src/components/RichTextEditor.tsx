@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 
 // Dynamically import ReactQuill to avoid SSR issues
@@ -13,6 +13,9 @@ const ReactQuill = dynamic(() => import('react-quill'), {
   )
 })
 
+// Import Quill CSS
+import 'react-quill/dist/quill.snow.css'
+
 interface RichTextEditorProps {
   value: string
   onChange: (value: string) => void
@@ -21,6 +24,7 @@ interface RichTextEditorProps {
 
 export default function RichTextEditor({ value, onChange, placeholder = 'Enter your content here...' }: RichTextEditorProps) {
   const [mounted, setMounted] = useState(false)
+  const quillRef = useRef<any>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -56,6 +60,7 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Enter y
   return (
     <div className="rich-text-editor">
       <ReactQuill
+        ref={quillRef}
         theme="snow"
         value={value}
         onChange={onChange}

@@ -8,6 +8,7 @@ import { PDF_SIZES } from '@/lib/constants'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import PDFSizeSelector from '@/components/PDFSizeSelector'
+import PDFCreationModal from '@/components/PDFCreationModal'
 
 interface PresetWithSize {
   id: string
@@ -30,16 +31,19 @@ export default function DashboardPage() {
   const [presets, setPresets] = useState<PresetWithSize[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPDFSize, setSelectedPDFSize] = useState<PDFSize | null>(null)
+  const [selectedPreset, setSelectedPreset] = useState<PresetWithSize | null>(null)
 
   useEffect(() => {
-    console.log('Dashboard: User state changed:', user)
-    if (!user && !loading) {
-      console.log('Dashboard: No user, redirecting to login')
-      router.push('/login')
-      return
-    }
+    console.log('Dashboard: User state changed:', user, 'Loading:', loading)
+    
+    // If we have a user, load presets
     if (user) {
+      console.log('Dashboard: User found, loading presets')
       loadPresets()
+    } else if (!loading) {
+      // If we're done loading and there's no user, redirect to login
+      console.log('Dashboard: No user after loading, redirecting to login')
+      router.push('/login')
     }
   }, [user, loading, router])
 
@@ -47,13 +51,19 @@ export default function DashboardPage() {
     if (!user) return
 
     try {
+      console.log('Loading presets for user:', user.id)
       const { data, error } = await getPresets(user.id)
+      console.log('Presets response:', { data, error })
+      
       if (error) {
+        console.error('Error loading presets:', error)
         toast.error('Failed to load presets')
       } else {
+        console.log('Setting presets:', data)
         setPresets(data || [])
       }
     } catch (error) {
+      console.error('Unexpected error loading presets:', error)
       toast.error('An unexpected error occurred')
     } finally {
       setLoading(false)
@@ -66,19 +76,34 @@ export default function DashboardPage() {
   }
 
   const handleCreatePDF = (preset: PresetWithSize) => {
-    router.push(`/dashboard/create-pdf?presetId=${preset.id}`)
+    console.log('Creating PDF for preset:', preset)
+    console.log('Preset ID:', preset.id)
+    setSelectedPreset(preset)
   }
 
+  const handleCloseModal = () => {
+    setSelectedPreset(null)
+  }
+
+  // Show loading while checking auth state
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading dashboard...</p>
+            </div>
           </div>
         </div>
       </div>
     )
+  }
+
+  // If no user after loading, show nothing (redirect will happen)
+  if (!user) {
+    return null
   }
 
   return (
@@ -143,6 +168,15 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* PDF Creation Modal */}
+      {selectedPreset && (
+        <PDFCreationModal
+          preset={selectedPreset}
+          onClose={handleCloseModal}
+          userId={user?.id}
+        />
+      )}
     </div>
   )
 }

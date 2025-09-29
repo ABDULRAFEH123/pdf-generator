@@ -16,7 +16,7 @@ export default function ImageUpload({ type, pdfWidth, onUpload, currentImage }: 
   const [preview, setPreview] = useState<string | null>(currentImage || null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const expectedHeight = type === 'header' ? 300 : 200
+  const expectedHeight = type === 'header' ? 300 : 300
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]

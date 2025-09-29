@@ -39,4 +39,4 @@ export const PDF_SIZES: PDFSize[] = [
 ]
 
 export const HEADER_HEIGHT = 300
-export const FOOTER_HEIGHT = 200
+export const FOOTER_HEIGHT = 300

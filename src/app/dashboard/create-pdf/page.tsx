@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { getPreset } from '@/lib/presets'
 import { generatePDF } from '@/lib/pdfGenerator'
 import { toast } from 'react-hot-toast'
-import RichTextEditor from '@/components/RichTextEditor'
+import PDFEditor from '@/components/PDFEditor'
 
 interface PresetWithSize {
   id: string
@@ -25,7 +25,7 @@ interface PresetWithSize {
 export default function CreatePDFPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [preset, setPreset] = useState<PresetWithSize | null>(null)
   const [content, setContent] = useState('')
   const [generating, setGenerating] = useState(false)
@@ -33,23 +33,37 @@ export default function CreatePDFPage() {
 
   useEffect(() => {
     const presetId = searchParams.get('presetId')
+    console.log('Create PDF page - presetId:', presetId, 'user:', user?.id, 'authLoading:', authLoading)
+    
+    // Don't redirect if we're still loading the user
+    if (authLoading) {
+      console.log('Still loading user, waiting...')
+      return
+    }
+    
     if (presetId && user) {
       loadPreset(presetId)
-    } else {
+    } else if (!authLoading) {
+      console.log('Missing presetId or user after loading, redirecting to dashboard')
       router.push('/dashboard')
     }
-  }, [searchParams, user, router])
+  }, [searchParams, user, authLoading, router])
 
   const loadPreset = async (presetId: string) => {
     try {
+      console.log('Loading preset with ID:', presetId)
       const { data, error } = await getPreset(presetId)
+      console.log('Preset data:', data, 'Error:', error)
+      
       if (error) {
-        toast.error('Failed to load preset')
+        console.error('Failed to load preset:', error)
+        toast.error(`Failed to load preset: ${error}`)
         router.push('/dashboard')
       } else {
         setPreset(data)
       }
     } catch (error) {
+      console.error('Unexpected error loading preset:', error)
       toast.error('An unexpected error occurred')
       router.push('/dashboard')
     } finally {
@@ -81,7 +95,7 @@ export default function CreatePDFPage() {
     router.push('/dashboard')
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
@@ -147,10 +161,11 @@ export default function CreatePDFPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   PDF Content
                 </label>
-                <RichTextEditor
+                <PDFEditor
                   value={content}
                   onChange={setContent}
-                  placeholder="Enter your PDF content here. You can format text, add lists, links, and more."
+                  placeholder="Enter your PDF content here. You can format text, add lists, and more."
+                  minHeight="400px"
                 />
               </div>
             </div>

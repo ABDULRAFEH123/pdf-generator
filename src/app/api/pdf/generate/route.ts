@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get preset details
-    const { data: preset, error: presetError } = await supabase
+    const { data: preset, error: presetError } = await supabaseAdmin
       .from('presets')
       .select(`
         *,
@@ -50,50 +49,53 @@ export async function POST(request: NextRequest) {
 
     // Add header image
     if (preset.header_image_url) {
-      const headerImg = await loadImage(preset.header_image_url)
-      pdf.addImage(headerImg, 'JPEG', 0, 0, pageWidth, headerHeight)
+      try {
+        const headerImg = await loadImage(preset.header_image_url)
+        pdf.addImage(headerImg, 'JPEG', 0, 0, pageWidth, headerHeight)
+      } catch (error) {
+        console.error('Failed to load header image:', error)
+      }
     }
 
     // Add footer image
     if (preset.footer_image_url) {
-      const footerImg = await loadImage(preset.footer_image_url)
-      pdf.addImage(footerImg, 'JPEG', 0, pageHeight - footerHeight, pageWidth, footerHeight)
+      try {
+        const footerImg = await loadImage(preset.footer_image_url)
+        pdf.addImage(footerImg, 'JPEG', 0, pageHeight - footerHeight, pageWidth, footerHeight)
+      } catch (error) {
+        console.error('Failed to load footer image:', error)
+      }
     }
 
-    // Create a temporary div for content rendering
-    const tempDiv = document.createElement('div')
-    tempDiv.innerHTML = content
-    tempDiv.style.position = 'absolute'
-    tempDiv.style.left = '-9999px'
-    tempDiv.style.width = `${pageWidth - 40}px`
-    tempDiv.style.padding = '20px'
-    tempDiv.style.fontFamily = 'Arial, sans-serif'
-    tempDiv.style.fontSize = '12px'
-    tempDiv.style.lineHeight = '1.4'
-    tempDiv.style.color = '#000000'
-    document.body.appendChild(tempDiv)
-
-    // Convert content to canvas
-    const canvas = await html2canvas(tempDiv, {
-      width: pageWidth - 40,
-      height: contentHeight,
-      scale: 2,
-      useCORS: true,
-      allowTaint: true
-    })
-
-    // Remove temporary div
-    document.body.removeChild(tempDiv)
-
-    // Add content to PDF
-    const contentImg = canvas.toDataURL('image/png')
-    pdf.addImage(contentImg, 'PNG', 20, headerHeight, pageWidth - 40, contentHeight)
+    // Add text content directly to PDF
+    const textContent = parseSimpleText(content)
+    const margin = 20
+    const textWidth = pageWidth - (margin * 2)
+    const textHeight = contentHeight - (margin * 2)
+    
+    // Set font and add text
+    pdf.setFont('helvetica')
+    pdf.setFontSize(12)
+    
+    // Split content into lines and add to PDF
+    const lines = pdf.splitTextToSize(textContent, textWidth)
+    let yPosition = headerHeight + margin
+    
+    for (const line of lines) {
+      if (yPosition + 15 > pageHeight - footerHeight - margin) {
+        // Add new page if content overflows
+        pdf.addPage()
+        yPosition = margin
+      }
+      pdf.text(line, margin, yPosition)
+      yPosition += 15
+    }
 
     // Save PDF to buffer
     const pdfBuffer = pdf.output('arraybuffer')
 
     // Save PDF document record
-    const { data: pdfDoc, error: pdfError } = await supabase
+    const { data: pdfDoc, error: pdfError } = await supabaseAdmin
       .from('pdf_documents')
       .insert([{
         preset_id: presetId,
@@ -124,12 +126,28 @@ export async function POST(request: NextRequest) {
   }
 }
 
-const loadImage = (url: string): Promise<HTMLImageElement> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => resolve(img)
-    img.onerror = reject
-    img.src = url
-  })
+// Parse simple text formatting
+const parseSimpleText = (content: string): string => {
+  return content
+    .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markers
+    .replace(/\*(.*?)\*/g, '$1') // Remove italic markers
+    .replace(/<u>(.*?)<\/u>/g, '$1') // Remove underline markers
+    .replace(/• /g, '• ') // Keep bullet points
+    .replace(/^\d+\. /gm, '') // Remove numbered list markers
+}
+
+// Load image for server-side use
+const loadImage = async (url: string): Promise<string> => {
+  try {
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`)
+    }
+    const arrayBuffer = await response.arrayBuffer()
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
+    return `data:image/jpeg;base64,${base64}`
+  } catch (error) {
+    console.error('Error loading image:', error)
+    throw error
+  }
 }

@@ -23,8 +23,8 @@ export default function LoginPage() {
       } else {
         console.log('Login successful:', data)
         toast.success('Signed in successfully!')
-        // Use window.location for a hard redirect to avoid RSC issues
-        window.location.href = '/dashboard'
+        // Use Next.js router for smooth navigation
+        router.push('/dashboard')
       }
     } catch (error) {
       console.error('Login error:', error)
