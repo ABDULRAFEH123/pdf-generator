@@ -30,30 +30,26 @@ export default function CreatePDFPage() {
   const [content, setContent] = useState('')
   const [generating, setGenerating] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [generatedPdfId, setGeneratedPdfId] = useState<string | null>(null)
 
   useEffect(() => {
     const presetId = searchParams.get('presetId')
-    console.log('Create PDF page - presetId:', presetId, 'user:', user?.id, 'authLoading:', authLoading)
     
     // Don't redirect if we're still loading the user
     if (authLoading) {
-      console.log('Still loading user, waiting...')
       return
     }
     
     if (presetId && user) {
       loadPreset(presetId)
     } else if (!authLoading) {
-      console.log('Missing presetId or user after loading, redirecting to dashboard')
       router.push('/dashboard')
     }
   }, [searchParams, user, authLoading, router])
 
   const loadPreset = async (presetId: string) => {
     try {
-      console.log('Loading preset with ID:', presetId)
       const { data, error } = await getPreset(presetId)
-      console.log('Preset data:', data, 'Error:', error)
       
       if (error) {
         console.error('Failed to load preset:', error)
@@ -82,8 +78,14 @@ export default function CreatePDFPage() {
     setGenerating(true)
 
     try {
-      await generatePDF(preset.id, content, user.id)
-      toast.success('PDF generated successfully!')
+      const result = await generatePDF(preset.id, content, user.id)
+      
+      if (result.success && result.pdfId) {
+        toast.success('PDF generated and saved successfully!')
+        setGeneratedPdfId(result.pdfId)
+      } else {
+        toast.error(result.error || 'Failed to generate PDF')
+      }
     } catch (error) {
       toast.error('Failed to generate PDF')
     } finally {
@@ -130,9 +132,9 @@ export default function CreatePDFPage() {
           </p>
         </div>
 
-        <div className="bg-white shadow rounded-lg">
-          <div className="p-6">
-            <div className="mb-6">
+        <div className="bg-white shadow rounded-lg flex flex-col h-[calc(100vh-200px)]">
+          <div className="p-6 flex-1 flex flex-col overflow-hidden">
+            <div className="mb-6 flex-shrink-0">
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <h4 className="text-sm font-medium text-gray-900 mb-2">Preview Layout</h4>
                 <div className="space-y-2">
@@ -156,11 +158,13 @@ export default function CreatePDFPage() {
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  PDF Content
-                </label>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex-shrink-0">
+                PDF Content
+              </label>
+              <div className="flex-1">
                 <PDFEditor
                   value={content}
                   onChange={setContent}
@@ -170,7 +174,41 @@ export default function CreatePDFPage() {
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3">
+            {/* Success Message */}
+            {generatedPdfId && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex-shrink-0">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-green-800">
+                      PDF Generated Successfully!
+                    </h3>
+                    <div className="mt-2 text-sm text-green-700">
+                      <p>Your PDF has been saved and is ready to download.</p>
+                    </div>
+                    <div className="mt-3">
+                      <a
+                        href={`/api/pdf/${generatedPdfId}/download`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download PDF
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3 flex-shrink-0">
               <button
                 onClick={handleCancel}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"

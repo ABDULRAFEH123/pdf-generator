@@ -37,6 +37,8 @@ CREATE TABLE pdf_documents (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   preset_id UUID NOT NULL REFERENCES presets(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
+  pdf_data TEXT, -- Base64 encoded PDF data
+  filename TEXT, -- Original filename
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE

@@ -5,9 +5,6 @@ const nextConfig = {
   },
   // Suppress ReactQuill warnings in development
   reactStrictMode: true,
-  experimental: {
-    suppressHydrationWarning: true,
-  },
 }
 
 module.exports = nextConfig

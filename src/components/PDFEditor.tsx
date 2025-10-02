@@ -36,12 +36,70 @@ export default function PDFEditor({
     setContent(value)
   }, [value])
 
+  // Function to split lists when data-list attribute changes
+  const splitListsByDataListAttribute = (html: string): string => {
+    // Find all list containers (ol or ul)
+    const listRegex = /<(ol|ul)[^>]*>.*?<\/\1>/gi
+    let result = html
+    
+    let match
+    while ((match = listRegex.exec(html)) !== null) {
+      const fullList = match[0]
+      const listTag = match[1] // 'ol' or 'ul'
+      
+      // Extract all li elements with their data-list attributes
+      const liRegex = /<li[^>]*data-list="([^"]*)"[^>]*>.*?<\/li>/gi
+      const listItems: Array<{ html: string; dataList: string }> = []
+      
+      let liMatch
+      while ((liMatch = liRegex.exec(fullList)) !== null) {
+        listItems.push({
+          html: liMatch[0],
+          dataList: liMatch[1]
+        })
+      }
+      
+      // Group consecutive items with the same data-list attribute
+      if (listItems.length > 0) {
+        const groups: Array<{ dataList: string; items: string[] }> = []
+        let currentGroup = { dataList: listItems[0].dataList, items: [listItems[0].html] }
+        
+        for (let i = 1; i < listItems.length; i++) {
+          if (listItems[i].dataList === currentGroup.dataList) {
+            currentGroup.items.push(listItems[i].html)
+          } else {
+            groups.push(currentGroup)
+            currentGroup = { dataList: listItems[i].dataList, items: [listItems[i].html] }
+          }
+        }
+        groups.push(currentGroup)
+        
+        // If we have multiple groups, split the list
+        if (groups.length > 1) {
+          const newLists = groups.map(group => {
+            const tag = group.dataList === 'bullet' ? 'ul' : 'ol'
+            // For ordered lists, add start="1" to force restart numbering
+            const startAttr = tag === 'ol' ? ' start="1"' : ''
+            return `<${tag}${startAttr}>${group.items.join('')}</${tag}>`
+          })
+          
+          result = result.replace(fullList, newLists.join(''))
+          console.log('🔧 Split list into', groups.length, 'separate lists:', groups.map(g => g.dataList))
+        }
+      }
+    }
+    
+    return result
+  }
+
   const handleChange = (html: string) => {
-    console.log('📝 Content changed:', html)
+    console.log('\n=== ✏️ EDITOR CHANGE DEBUG ===')
+    console.log('Raw HTML from Quill:', html)
+    
     setContent(html)
     
     // Clean up the HTML to remove Quill-specific classes and attributes
-    const cleanedHtml = html
+    let cleanedHtml = html
       .replace(/class="(?!ql-align-)[^"]*"/g, '') // Remove all class attributes except alignment classes
       .replace(/style="[^"]*"/g, '') // Remove all style attributes
       .replace(/<span[^>]*>/g, '') // Remove span tags
@@ -49,13 +107,16 @@ export default function PDFEditor({
       .replace(/<strong><\/strong>/g, '') // Remove empty strong tags
       .replace(/<em><\/em>/g, '') // Remove empty em tags
       .replace(/<u><\/u>/g, '') // Remove empty u tags
-      .replace(/<p><br><\/p>/g, '') // Remove empty paragraphs with br
       .replace(/<p><\/p>/g, '') // Remove completely empty paragraphs
-      .replace(/\s+/g, ' ') // Remove extra whitespace
-      .replace(/>\s+</g, '><') // Remove whitespace between tags
+      .replace(/<p><br><\/p>/g, '<br>') // Convert empty paragraphs with br to just br
       .trim()
 
-    console.log('✨ Cleaned HTML:', cleanedHtml)
+    // Fix: Split lists when data-list attribute changes to restart numbering
+    cleanedHtml = splitListsByDataListAttribute(cleanedHtml)
+
+    console.log('Cleaned HTML being sent to parent:', cleanedHtml)
+    console.log('=== END EDITOR DEBUG ===\n')
+
     onChange?.(cleanedHtml)
   }
 
@@ -75,7 +136,7 @@ export default function PDFEditor({
     'header',
     'bold', 'italic', 'underline',
     'align',
-    'list', 'bullet',
+    'list', // For both ordered and bullet lists
   ]
 
   if (!mounted) {
@@ -92,13 +153,24 @@ export default function PDFEditor({
   }
 
   return (
-    <div className="border border-gray-300 rounded-md overflow-hidden">
+    <div className="border border-gray-300 rounded-md flex flex-col" style={{ height: '500px' }}>
       <style jsx global>{`
         .ql-editor {
           min-height: ${minHeight};
+          max-height: 400px;
+          height: auto;
           font-size: 14px;
           line-height: 1.5;
           font-family: system-ui, -apple-system, sans-serif;
+          overflow-y: auto;
+          flex: 1;
+        }
+        
+        .ql-container {
+          height: 100%;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
         }
         
         .ql-editor.ql-blank::before {
@@ -114,6 +186,9 @@ export default function PDFEditor({
         
         .ql-container {
           border: none;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
         }
         
         .ql-editor h1 {
@@ -150,6 +225,26 @@ export default function PDFEditor({
         .ql-editor li {
           margin: 2px 0;
           line-height: 1.4;
+        }
+        
+        /* Hide Quill's internal UI elements that show extra markers */
+        .ql-editor .ql-ui {
+          display: none !important;
+        }
+        
+        /* Ensure list markers are properly styled */
+        .ql-editor ol {
+          list-style-type: decimal;
+        }
+        
+        .ql-editor ul {
+          list-style-type: disc;
+        }
+        
+        /* Force proper list display */
+        .ql-editor ol li,
+        .ql-editor ul li {
+          display: list-item;
         }
         
         /* Text alignment styles */

@@ -45,7 +45,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    console.log('Preset creation request:', body)
     const { name, pdf_size_id, header_image_url, footer_image_url, header_height, footer_height, user_id } = body
 
     if (!name || !pdf_size_id || !header_image_url || !footer_image_url || !user_id) {

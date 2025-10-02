@@ -69,24 +69,67 @@
 
 /* Lists */
 .pdf-preview-content ul {
-  margin: 3px 0 !important;
-  padding-left: 10px !important;
+  margin: 6px 0 !important;
+  padding-left: 20px !important;
   list-style-type: disc !important;
+  list-style-position: outside !important;
   display: block !important;
 }
 
 .pdf-preview-content ol {
-  margin: 3px 0 !important;
-  padding-left: 10px !important;
+  margin: 6px 0 !important;
+  padding-left: 20px !important;
   list-style-type: decimal !important;
+  list-style-position: outside !important;
   display: block !important;
 }
 
 .pdf-preview-content li {
-  margin: 1px 0 !important;
-  line-height: 1.3 !important;
+  margin: 2px 0 !important;
+  padding-left: 4px !important;
+  line-height: 1.4 !important;
   display: list-item !important;
   color: #000 !important;
+}
+
+/* Handle Quill's list items with data-list attribute - override parent list type */
+/* Using highest specificity to override ol/ul defaults */
+.pdf-preview-content ol > li[data-list="bullet"],
+.pdf-preview-content ul > li[data-list="bullet"],
+ol > li[data-list="bullet"],
+ul > li[data-list="bullet"],
+li[data-list="bullet"] {
+  list-style-type: disc !important;
+  list-style-position: outside !important;
+  margin-left: 20px !important;
+  display: list-item !important;
+}
+
+.pdf-preview-content ol > li[data-list="ordered"],
+.pdf-preview-content ul > li[data-list="ordered"],
+ol > li[data-list="ordered"],
+ul > li[data-list="ordered"],
+li[data-list="ordered"] {
+  list-style-type: decimal !important;
+  list-style-position: outside !important;
+  margin-left: 20px !important;
+  display: list-item !important;
+}
+
+/* Force override for bullet items inside ol tags - use attribute selector with higher specificity */
+.pdf-preview-content ol li[data-list="bullet"]::marker,
+ol > li[data-list="bullet"]::marker,
+li[data-list="bullet"]::marker {
+  content: "• " !important;
+  list-style-type: disc !important;
+}
+
+/* Force override for ordered items inside ul tags */
+.pdf-preview-content ul li[data-list="ordered"]::marker,
+ul > li[data-list="ordered"]::marker,
+li[data-list="ordered"]::marker {
+  content: counter(list-item) ". " !important;
+  list-style-type: decimal !important;
 }
 
 /* Nested lists */

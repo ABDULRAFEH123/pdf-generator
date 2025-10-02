@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { generatePDF } from '@/lib/pdfGenerator'
+import { usePDFGeneration } from '@/hooks/usePDFGeneration'
 import { toast } from 'react-hot-toast'
 import PDFEditor from '@/components/PDFEditor'
 import './PDFPreview.css'
@@ -27,16 +27,20 @@ interface PDFCreationModalProps {
 
 export default function PDFCreationModal({ preset, onClose, userId }: PDFCreationModalProps) {
   const [content, setContent] = useState('')
-  const [generating, setGenerating] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const generatePDFMutation = usePDFGeneration()
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Debug: Log content changes
+  // Log content changes for debugging
   useEffect(() => {
-    console.log('PDFCreationModal - Content updated:', content)
+    console.log('\n=== 🔍 MODAL CONTENT CHANGE DEBUG ===')
+    console.log('Content length:', content.length)
+    console.log('Content preview (first 300 chars):', content.substring(0, 300))
+    console.log('Full content:', content)
+    console.log('=== END CONTENT DEBUG ===\n')
   }, [content])
 
   const handleGeneratePDF = async () => {
@@ -45,28 +49,28 @@ export default function PDFCreationModal({ preset, onClose, userId }: PDFCreatio
       return
     }
 
-    setGenerating(true)
-
-    try {
-      await generatePDF(
-        preset.id,
-        content,
-        userId || preset.user_id || 'current-user'
-      )
-      toast.success('PDF generated successfully!')
-      onClose()
-    } catch (error) {
-      toast.error('Failed to generate PDF')
-    } finally {
-      setGenerating(false)
+    if (!userId) {
+      toast.error('User ID is required')
+      return
     }
+
+    generatePDFMutation.mutate({
+      presetId: preset.id,
+      content,
+      userId
+    }, {
+      onSuccess: () => {
+        // Close modal after successful generation
+        onClose()
+      }
+    })
   }
 
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-10 mx-auto p-5 border w-11/12 max-w-7xl shadow-lg rounded-md bg-white">
-        <div className="mt-3">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center py-4">
+      <div className="relative mx-auto p-5 border w-11/12 max-w-7xl shadow-lg rounded-md bg-white flex flex-col" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-gray-900">
@@ -82,19 +86,21 @@ export default function PDFCreationModal({ preset, onClose, userId }: PDFCreatio
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-y-scroll">
             {/* Left Side - Content Editor */}
-            <div className="space-y-4">
-              <div>
+            <div className="space-y-4 flex flex-col">
+              <div className="flex-1 flex flex-col">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   PDF Content
                 </label>
-                <PDFEditor
-                  value={content}
-                  onChange={setContent}
-                  placeholder="Enter your PDF content here. You can format text, add headings, lists, and more."
-                  minHeight="350px"
-                />
+                <div className="flex-1">
+                  <PDFEditor
+                    value={content}
+                    onChange={setContent}
+                    placeholder="Enter your PDF content here. You can format text, add headings, lists, and more."
+                    minHeight="400px"
+                  />
+                </div>
               </div>
             </div>
 
@@ -114,7 +120,7 @@ export default function PDFCreationModal({ preset, onClose, userId }: PDFCreatio
                 >
                   {/* Header Image */}
                   <div 
-                    className="absolute top-0 left-0 bg-gray-100 border-b border-gray-200 flex items-center justify-center overflow-hidden"
+                    className="absolute top-0 left-0 bg-gray-100 flex items-center justify-center overflow-hidden"
                     style={{ 
                       width: '375px', 
                       height: `${(preset.header_height / preset.pdf_sizes.width) * 375}px` 
@@ -139,7 +145,7 @@ export default function PDFCreationModal({ preset, onClose, userId }: PDFCreatio
 
                   {/* Content Area */}
                   <div 
-                    className="absolute left-0 bg-white p-2 overflow-hidden"
+                    className="absolute left-0 bg-white p-2 overflow-y-auto"
                     style={{ 
                       width: '375px', 
                       top: `${(preset.header_height / preset.pdf_sizes.width) * 375}px`,
@@ -150,6 +156,45 @@ export default function PDFCreationModal({ preset, onClose, userId }: PDFCreatio
                       <div 
                         className="pdf-preview-content"
                         dangerouslySetInnerHTML={{ __html: content }}
+                        ref={(el) => {
+                          if (el) {
+                            console.log('\n=== 📺 PREVIEW RENDER DEBUG ===')
+                            console.log('Preview innerHTML:', el.innerHTML.substring(0, 300))
+                            console.log('Preview full HTML:', el.innerHTML)
+                            console.log('List items in preview:', el.querySelectorAll('li').length)
+                            
+                            // FIX: Convert OL to UL when data-list="bullet" and vice versa
+                            el.querySelectorAll('ol').forEach((ol) => {
+                              const firstLi = ol.querySelector('li')
+                              if (firstLi && firstLi.getAttribute('data-list') === 'bullet') {
+                                console.log('🔧 Converting OL to UL (has bullet data-list)')
+                                const ul = document.createElement('ul')
+                                ul.innerHTML = ol.innerHTML
+                                ol.replaceWith(ul)
+                              }
+                            })
+                            
+                            el.querySelectorAll('ul').forEach((ul) => {
+                              const firstLi = ul.querySelector('li')
+                              if (firstLi && firstLi.getAttribute('data-list') === 'ordered') {
+                                console.log('🔧 Converting UL to OL (has ordered data-list)')
+                                const ol = document.createElement('ol')
+                                ol.innerHTML = ul.innerHTML
+                                ul.replaceWith(ol)
+                              }
+                            })
+                            
+                            el.querySelectorAll('li').forEach((li, i) => {
+                              console.log(`Li ${i}:`, {
+                                'data-list': li.getAttribute('data-list'),
+                                'parent tag': li.parentElement?.tagName,
+                                'computed list-style-type': window.getComputedStyle(li).listStyleType,
+                                'text': li.textContent?.substring(0, 50)
+                              })
+                            })
+                            console.log('=== END PREVIEW DEBUG ===\n')
+                          }
+                        }}
                       />
                     ) : (
                       <div className="text-xs text-gray-400 italic">
@@ -160,7 +205,7 @@ export default function PDFCreationModal({ preset, onClose, userId }: PDFCreatio
 
                   {/* Footer Image */}
                   <div 
-                    className="absolute bottom-0 left-0 bg-gray-100 border-t border-gray-200 flex items-center justify-center overflow-hidden"
+                    className="absolute bottom-0 left-0 bg-gray-100 flex items-center justify-center overflow-hidden"
                     style={{ 
                       width: '375px', 
                       height: `${(preset.footer_height / preset.pdf_sizes.width) * 375}px` 
@@ -198,7 +243,7 @@ export default function PDFCreationModal({ preset, onClose, userId }: PDFCreatio
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
+          <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200 flex-shrink-0">
             <button
               onClick={onClose}
               className="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
@@ -207,10 +252,10 @@ export default function PDFCreationModal({ preset, onClose, userId }: PDFCreatio
             </button>
             <button
               onClick={handleGeneratePDF}
-              disabled={generating || !content.trim()}
+              disabled={generatePDFMutation.isPending || !content.trim()}
               className="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {generating ? 'Generating PDF...' : 'Generate PDF'}
+              {generatePDFMutation.isPending ? 'Generating PDF...' : 'Generate PDF'}
             </button>
           </div>
         </div>

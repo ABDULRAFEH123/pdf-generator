@@ -2,8 +2,29 @@ export const generatePDF = async (
   presetId: string,
   content: string,
   userId: string
-): Promise<void> => {
+): Promise<{ success: boolean; pdfId?: string; error?: string }> => {
   try {
+    console.log('\n=== PDF GENERATION REQUEST DEBUG ===')
+    console.log('🚀 Starting PDF Generation...')
+    console.log('- Preset ID:', presetId)
+    console.log('- User ID:', userId)
+    console.log('- Content length:', content.length, 'characters')
+    console.log('- Content preview:', content.substring(0, 150) + '...')
+    console.log('\n=== FULL CONTENT BEING SENT ===')
+    console.log('Raw content:')
+    console.log(content)
+    console.log('\n=== CONTENT ANALYSIS ===')
+    console.log('Contains <p> tags:', content.includes('<p>'))
+    console.log('Contains <br> tags:', content.includes('<br>'))
+    console.log('Contains <h1> tags:', content.includes('<h1>'))
+    console.log('Contains <h2> tags:', content.includes('<h2>'))
+    console.log('Contains <h3> tags:', content.includes('<h3>'))
+    console.log('Contains <ul> tags:', content.includes('<ul>'))
+    console.log('Contains <ol> tags:', content.includes('<ol>'))
+    console.log('Contains <li> tags:', content.includes('<li>'))
+    console.log('Contains <strong> tags:', content.includes('<strong>'))
+    console.log('Contains <em> tags:', content.includes('<em>'))
+    
     const response = await fetch('/api/pdf/generate', {
       method: 'POST',
       headers: {
@@ -16,21 +37,28 @@ export const generatePDF = async (
       }),
     })
     
-    const result = await response.json()
+    console.log('📡 API Response status:', response.status, response.statusText)
     
+    const result = await response.json()
+    console.log('📄 API Response data:', result)
+      
     if (!response.ok) {
+      console.error('❌ API Error:', result)
       throw new Error(result.error || 'Failed to generate PDF')
     }
     
-    // Download the PDF
-    const link = document.createElement('a')
-    link.href = `data:application/pdf;base64,${result.pdf}`
-    link.download = result.filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    console.log('✅ PDF Generated successfully! ID:', result.pdfId)
+    
+    // Return the PDF ID instead of downloading
+    return {
+      success: true,
+      pdfId: result.pdfId
+    }
   } catch (error) {
-    console.error('Error generating PDF:', error)
-    throw new Error('Failed to generate PDF')
+    console.error('💥 Error generating PDF:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to generate PDF'
+    }
   }
 }
