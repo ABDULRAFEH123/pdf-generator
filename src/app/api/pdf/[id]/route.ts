@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
-export async function GET(
+export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json(
@@ -15,42 +15,28 @@ export async function GET(
       )
     }
 
-    // Get PDF document from database
-    const { data: pdfDoc, error } = await supabaseAdmin
+    // Delete the PDF document from database
+    const { error } = await supabaseAdmin
       .from('pdf_documents')
-      .select(`
-        *,
-        presets (
-          name,
-          header_image_url,
-          footer_image_url,
-          header_height,
-          footer_height,
-          pdf_sizes (
-            name,
-            width,
-            height
-          )
-        )
-      `)
+      .delete()
       .eq('id', id)
-      .single()
 
-    if (error || !pdfDoc) {
+    if (error) {
+      console.error('Error deleting PDF:', error)
       return NextResponse.json(
-        { error: 'PDF not found' },
-        { status: 404 }
+        { error: 'Failed to delete PDF' },
+        { status: 500 }
       )
     }
 
-    return NextResponse.json({
-      success: true,
-      pdf: pdfDoc
-    })
-  } catch (error) {
-    console.error('Error fetching PDF:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch PDF' },
+      { message: 'PDF deleted successfully' },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('Error deleting PDF:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete PDF' },
       { status: 500 }
     )
   }

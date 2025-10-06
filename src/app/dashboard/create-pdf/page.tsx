@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { getPreset } from '@/lib/presets'
@@ -22,7 +22,7 @@ interface PresetWithSize {
   }
 }
 
-export default function CreatePDFPage() {
+function CreatePDFContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
@@ -227,5 +227,21 @@ export default function CreatePDFPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CreatePDFPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <CreatePDFContent />
+    </Suspense>
   )
 }

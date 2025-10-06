@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { PDFSize } from '@/types'
 import { PDF_SIZES } from '@/lib/constants'
 import PresetForm from '@/components/PresetForm'
 
-export default function CreatePresetPage() {
+function CreatePresetContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user } = useAuth()
@@ -80,5 +80,21 @@ export default function CreatePresetPage() {
         />
       </div>
     </div>
+  )
+}
+
+export default function CreatePresetPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <CreatePresetContent />
+    </Suspense>
   )
 }
