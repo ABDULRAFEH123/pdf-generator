@@ -29,14 +29,7 @@ export default function PDFPreviewModal({ content, presetName, onClose }: PDFPre
           </div>
 
           <div className="mb-6">
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">Raw HTML Content</h4>
-              <div className="bg-white border rounded p-3 max-h-40 overflow-y-auto">
-                <pre className="text-xs text-gray-600 whitespace-pre-wrap break-words">
-                  {content}
-                </pre>
-              </div>
-            </div>
+    
 
             <div className="bg-white border rounded-lg p-6">
               <h4 className="text-sm font-medium text-gray-900 mb-4">Rendered Preview</h4>

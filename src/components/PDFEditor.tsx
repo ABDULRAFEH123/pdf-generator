@@ -84,7 +84,6 @@ export default function PDFEditor({
           })
           
           result = result.replace(fullList, newLists.join(''))
-          console.log('🔧 Split list into', groups.length, 'separate lists:', groups.map(g => g.dataList))
         }
       }
     }
@@ -93,9 +92,7 @@ export default function PDFEditor({
   }
 
   const handleChange = (html: string) => {
-    console.log('\n=== ✏️ EDITOR CHANGE DEBUG ===')
-    console.log('Raw HTML from Quill:', html)
-    
+    console.log('📝 Editor handleChange - Raw HTML:', html)
     setContent(html)
     
     // Clean up the HTML to remove Quill-specific classes and attributes
@@ -107,15 +104,13 @@ export default function PDFEditor({
       .replace(/<strong><\/strong>/g, '') // Remove empty strong tags
       .replace(/<em><\/em>/g, '') // Remove empty em tags
       .replace(/<u><\/u>/g, '') // Remove empty u tags
-      .replace(/<p><\/p>/g, '') // Remove completely empty paragraphs
-      .replace(/<p><br><\/p>/g, '<br>') // Convert empty paragraphs with br to just br
+      // DON'T remove <p></p> or <p><br></p> - Quill uses these for new lines!
       .trim()
 
     // Fix: Split lists when data-list attribute changes to restart numbering
     cleanedHtml = splitListsByDataListAttribute(cleanedHtml)
-
-    console.log('Cleaned HTML being sent to parent:', cleanedHtml)
-    console.log('=== END EDITOR DEBUG ===\n')
+    
+    console.log('✨ Editor handleChange - Cleaned HTML:', cleanedHtml)
 
     onChange?.(cleanedHtml)
   }
@@ -129,6 +124,27 @@ export default function PDFEditor({
       [{ 'list': 'ordered'}, { 'list': 'bullet' }], // Lists
       ['clean'] // Remove formatting
     ],
+    clipboard: {
+      matchVisual: false
+    },
+    keyboard: {
+      bindings: {
+        // Override Enter key to always create a new paragraph
+        enter: {
+          key: 13,
+          handler: function(this: any) {
+            const range = this.quill.getSelection()
+            if (range) {
+              // Insert a new line
+              this.quill.insertText(range.index, '\n')
+              // Move cursor to the new line
+              this.quill.setSelection(range.index + 1)
+            }
+            return false // Prevent default
+          }
+        }
+      }
+    }
   }
 
   // Quill formats configuration
@@ -153,7 +169,25 @@ export default function PDFEditor({
   }
 
   return (
-    <div className="border border-gray-300 rounded-md flex flex-col" style={{ height: '500px' }}>
+    <div 
+      className="border border-gray-300 rounded-md flex flex-col" 
+      style={{ height: '500px' }}
+      onKeyDown={(e) => {
+        console.log('🎹 PDFEditor Container KeyDown:', {
+          key: e.key,
+          keyCode: e.keyCode,
+          shiftKey: e.shiftKey,
+          ctrlKey: e.ctrlKey,
+          target: (e.target as HTMLElement).className,
+          isQuillEditor: (e.target as HTMLElement).classList?.contains('ql-editor')
+        })
+        
+        if (e.key === 'Enter') {
+          console.log('⚡ Enter key in PDFEditor - NOT preventing default')
+          // Don't prevent default - let Quill handle it
+        }
+      }}
+    >
       <style jsx global>{`
         .ql-editor {
           min-height: ${minHeight};
@@ -164,6 +198,7 @@ export default function PDFEditor({
           font-family: system-ui, -apple-system, sans-serif;
           overflow-y: auto;
           flex: 1;
+          padding: 12px 15px;
         }
         
         .ql-container {
@@ -171,6 +206,11 @@ export default function PDFEditor({
           flex: 1;
           display: flex;
           flex-direction: column;
+          font-size: 14px;
+        }
+        
+        .ql-editor:focus {
+          outline: none;
         }
         
         .ql-editor.ql-blank::before {

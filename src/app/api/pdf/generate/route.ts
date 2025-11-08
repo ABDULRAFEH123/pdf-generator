@@ -597,6 +597,63 @@ const renderLine = async (
   return y
 }
 
+// Helper function to decode HTML entities
+const decodeHTMLEntities = (text: string): string => {
+  const entities: Record<string, string> = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&nbsp;': ' ',
+    '&copy;': '©',
+    '&reg;': '®',
+    '&trade;': '™',
+    '&euro;': '€',
+    '&pound;': '£',
+    '&yen;': '¥',
+    '&cent;': '¢',
+    '&sect;': '§',
+    '&para;': '¶',
+    '&dagger;': '†',
+    '&Dagger;': '‡',
+    '&bull;': '•',
+    '&hellip;': '…',
+    '&prime;': '′',
+    '&Prime;': '″',
+    '&lsaquo;': '‹',
+    '&rsaquo;': '›',
+    '&laquo;': '«',
+    '&raquo;': '»',
+    '&ndash;': '–',
+    '&mdash;': '—',
+    '&lsquo;': '\u2018',
+    '&rsquo;': '\u2019',
+    '&sbquo;': '\u201A',
+    '&ldquo;': '\u201C',
+    '&rdquo;': '\u201D',
+    '&bdquo;': '\u201E'
+  }
+  
+  let decoded = text
+  
+  // Replace named entities
+  for (const [entity, char] of Object.entries(entities)) {
+    decoded = decoded.replace(new RegExp(entity, 'g'), char)
+  }
+  
+  // Replace numeric entities (e.g., &#8217; or &#x2019;)
+  decoded = decoded.replace(/&#(\d+);/g, (match, dec) => {
+    return String.fromCharCode(parseInt(dec, 10))
+  })
+  
+  decoded = decoded.replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
+    return String.fromCharCode(parseInt(hex, 16))
+  })
+  
+  return decoded
+}
+
 // Parse HTML content into structured elements
 const parseHTMLContent = (htmlContent: string) => {
   console.log('\n=== HTML PARSING DEBUG ===')
@@ -618,7 +675,7 @@ const parseHTMLContent = (htmlContent: string) => {
   
   while ((match = htmlRegex.exec(htmlContent)) !== null) {
     const [fullMatch, tagName, content] = match
-    const cleanContent = content.replace(/<[^>]*>/g, '').trim()
+    const cleanContent = decodeHTMLEntities(content.replace(/<[^>]*>/g, '').trim())
     
     if (cleanContent) {
       if (tagName === 'h1') {
@@ -654,7 +711,7 @@ const parseHTMLContent = (htmlContent: string) => {
         // Handle ordered lists
         const listItems = content.match(/<li[^>]*>([\s\S]*?)<\/li>/gi) || []
         listItems.forEach((item, index) => {
-          const itemContent = item.replace(/<li[^>]*>|<\/li>/gi, '').replace(/<[^>]*>/g, '').trim()
+          const itemContent = decodeHTMLEntities(item.replace(/<li[^>]*>|<\/li>/gi, '').replace(/<[^>]*>/g, '').trim())
           if (itemContent) {
             elements.push({
               type: 'list-item',
@@ -667,7 +724,7 @@ const parseHTMLContent = (htmlContent: string) => {
         // Handle unordered lists
         const listItems = content.match(/<li[^>]*>([\s\S]*?)<\/li>/gi) || []
         listItems.forEach((item) => {
-          const itemContent = item.replace(/<li[^>]*>|<\/li>/gi, '').replace(/<[^>]*>/g, '').trim()
+          const itemContent = decodeHTMLEntities(item.replace(/<li[^>]*>|<\/li>/gi, '').replace(/<[^>]*>/g, '').trim())
           if (itemContent) {
             elements.push({
               type: 'list-item',
@@ -709,39 +766,39 @@ const processFormattedContent = (content: string) => {
   
   // Handle bold and italic combinations
   content = content.replace(/<strong[^>]*><em[^>]*>(.*?)<\/em><\/strong>/gi, (match, text) => {
-    parts.push({ text: text.trim(), isBold: true, isItalic: true })
+    parts.push({ text: decodeHTMLEntities(text.trim()), isBold: true, isItalic: true })
     return ''
   })
   
   content = content.replace(/<em[^>]*><strong[^>]*>(.*?)<\/strong><\/em>/gi, (match, text) => {
-    parts.push({ text: text.trim(), isBold: true, isItalic: true })
+    parts.push({ text: decodeHTMLEntities(text.trim()), isBold: true, isItalic: true })
     return ''
   })
   
   // Handle bold text
   content = content.replace(/<strong[^>]*>(.*?)<\/strong>/gi, (match, text) => {
-    parts.push({ text: text.trim(), isBold: true, isItalic: false })
+    parts.push({ text: decodeHTMLEntities(text.trim()), isBold: true, isItalic: false })
     return ''
   })
   
   content = content.replace(/<b[^>]*>(.*?)<\/b>/gi, (match, text) => {
-    parts.push({ text: text.trim(), isBold: true, isItalic: false })
+    parts.push({ text: decodeHTMLEntities(text.trim()), isBold: true, isItalic: false })
     return ''
   })
   
   // Handle italic text
   content = content.replace(/<em[^>]*>(.*?)<\/em>/gi, (match, text) => {
-    parts.push({ text: text.trim(), isBold: false, isItalic: true })
+    parts.push({ text: decodeHTMLEntities(text.trim()), isBold: false, isItalic: true })
     return ''
   })
   
   content = content.replace(/<i[^>]*>(.*?)<\/i>/gi, (match, text) => {
-    parts.push({ text: text.trim(), isBold: false, isItalic: true })
+    parts.push({ text: decodeHTMLEntities(text.trim()), isBold: false, isItalic: true })
     return ''
   })
   
   // Handle remaining text
-  const remainingText = content.replace(/<[^>]*>/g, '').trim()
+  const remainingText = decodeHTMLEntities(content.replace(/<[^>]*>/g, '').trim())
   if (remainingText) {
     parts.push({ text: remainingText, isBold: false, isItalic: false })
   }

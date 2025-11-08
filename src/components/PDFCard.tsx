@@ -1,8 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'react-hot-toast'
 import ConfirmationModal from './ConfirmationModal'
+import PDFCreationModal from './PDFCreationModal'
+import PDFPreviewModal from './PDFPreviewModal'
 
 interface PDFCardProps {
   pdf: {
@@ -29,6 +32,8 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
   const [downloading, setDownloading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
 
   const handleDownload = async () => {
     setDownloading(true)
@@ -105,9 +110,36 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
     })
   }
 
+  const decodeHTMLEntities = (text: string): string => {
+    const entities: Record<string, string> = {
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#39;': "'",
+      '&nbsp;': ' ',
+    }
+    
+    let decoded = text
+    for (const [entity, char] of Object.entries(entities)) {
+      decoded = decoded.replace(new RegExp(entity, 'g'), char)
+    }
+    
+    // Replace numeric entities
+    decoded = decoded.replace(/&#(\d+);/g, (match, dec) => {
+      return String.fromCharCode(parseInt(dec, 10))
+    })
+    
+    decoded = decoded.replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
+      return String.fromCharCode(parseInt(hex, 16))
+    })
+    
+    return decoded
+  }
+
   const getContentPreview = (content: string) => {
-    // Remove HTML tags and get first 100 characters
-    const textContent = content.replace(/<[^>]*>/g, '').trim()
+    // Remove HTML tags and decode entities
+    const textContent = decodeHTMLEntities(content.replace(/<[^>]*>/g, '').trim())
     return textContent.length > 100 ? textContent.substring(0, 100) + '...' : textContent
   }
 
@@ -148,17 +180,7 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
 
       <div className="p-6">
         {/* Content Preview */}
-        <div className="mb-6">
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-            <div className="flex items-center space-x-2 mb-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Content Preview</span>
-            </div>
-            <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
-              {getContentPreview(pdf.content)}
-            </p>
-          </div>
-        </div>
+
 
         {/* PDF Details with Icons */}
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -195,6 +217,29 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
 
         {/* Actions */}
         <div className="space-y-3">
+          {/* Edit and Preview Buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="inline-flex items-center justify-center px-4 py-2.5 border border-green-300 text-sm font-medium rounded-xl text-green-700 bg-green-50 hover:bg-green-100 hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit
+            </button>
+            <button
+              onClick={() => setShowPreviewModal(true)}
+              className="inline-flex items-center justify-center px-4 py-2.5 border border-blue-300 text-sm font-medium rounded-xl text-blue-700 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              Preview
+            </button>
+          </div>
+          
           <div className="flex items-center space-x-3">
             <button
               onClick={handleDownload}
@@ -259,6 +304,37 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
         isLoading={deleting}
         type="danger"
       />
+
+      {/* Edit Modal - Render at document body level using portal */}
+      {showEditModal && typeof document !== 'undefined' && createPortal(
+        <PDFCreationModal
+          preset={{
+            id: pdf.presets.name,
+            name: pdf.presets.name,
+            header_image_url: pdf.presets.header_image_url,
+            footer_image_url: pdf.presets.footer_image_url,
+            header_height: pdf.presets.header_height,
+            footer_height: pdf.presets.footer_height,
+            pdf_sizes: pdf.presets.pdf_sizes
+          }}
+          onClose={() => setShowEditModal(false)}
+          userId={undefined}
+          initialContent={pdf.content}
+          pdfId={pdf.id}
+          isEditMode={true}
+        />,
+        document.body
+      )}
+
+      {/* Preview Modal - Render at document body level using portal */}
+      {showPreviewModal && typeof document !== 'undefined' && createPortal(
+        <PDFPreviewModal
+          content={pdf.content}
+          presetName={pdf.presets.name}
+          onClose={() => setShowPreviewModal(false)}
+        />,
+        document.body
+      )}
     </div>
   )
 }

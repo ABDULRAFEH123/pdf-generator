@@ -58,28 +58,6 @@ export async function GET(
 
     // Otherwise, generate PDF on-demand
     const preset = pdfDoc.presets
-    
-    console.log('\n=== PDF DOWNLOAD GENERATION DEBUG ===')
-    console.log('PDF ID:', id)
-    console.log('Preset:', preset?.name)
-    console.log('Size (px):', { width: preset.pdf_sizes.width, height: preset.pdf_sizes.height })
-    console.log('Content length:', pdfDoc.content.length)
-    console.log('Content preview:', pdfDoc.content.substring(0, 200) + '...')
-    console.log('\n=== FULL CONTENT DEBUG ===')
-    console.log('Raw HTML content:')
-    console.log(pdfDoc.content)
-    console.log('\n=== CONTENT ANALYSIS ===')
-    console.log('Contains <p> tags:', pdfDoc.content.includes('<p>'))
-    console.log('Contains <br> tags:', pdfDoc.content.includes('<br>'))
-    console.log('Contains <h1> tags:', pdfDoc.content.includes('<h1>'))
-    console.log('Contains <h2> tags:', pdfDoc.content.includes('<h2>'))
-    console.log('Contains <h3> tags:', pdfDoc.content.includes('<h3>'))
-    console.log('Contains <ul> tags:', pdfDoc.content.includes('<ul>'))
-    console.log('Contains <ol> tags:', pdfDoc.content.includes('<ol>'))
-    console.log('Contains <li> tags:', pdfDoc.content.includes('<li>'))
-    console.log('Contains <strong> tags:', pdfDoc.content.includes('<strong>'))
-    console.log('Contains <em> tags:', pdfDoc.content.includes('<em>'))
-    
     // Count different elements
     const pMatches = pdfDoc.content.match(/<p[^>]*>/gi) || []
     const brMatches = pdfDoc.content.match(/<br\s*\/?>/gi) || []
@@ -89,17 +67,6 @@ export async function GET(
     const ulMatches = pdfDoc.content.match(/<ul[^>]*>/gi) || []
     const olMatches = pdfDoc.content.match(/<ol[^>]*>/gi) || []
     const liMatches = pdfDoc.content.match(/<li[^>]*>/gi) || []
-    
-    console.log('\n=== ELEMENT COUNTS ===')
-    console.log('Paragraphs (<p>):', pMatches.length)
-    console.log('Line breaks (<br>):', brMatches.length)
-    console.log('H1 headings:', h1Matches.length)
-    console.log('H2 headings:', h2Matches.length)
-    console.log('H3 headings:', h3Matches.length)
-    console.log('Unordered lists (<ul>):', ulMatches.length)
-    console.log('Ordered lists (<ol>):', olMatches.length)
-    console.log('List items (<li>):', liMatches.length)
-    
     // Generate PDF - use A4 standard if dimensions match, otherwise custom
     let pdfConfig
     if (preset.pdf_sizes.width === 2480 && preset.pdf_sizes.height === 3508) {
@@ -155,11 +122,6 @@ export async function GET(
     const textWidth = pageWidth - (margin * 2)
     const textHeight = pageHeight - headerHeight - footerHeight - (margin * 2)
     
-    console.log('\n=== DOWNLOAD PDF GENERATION DEBUG ===')
-    console.log('- Page dimensions (mm):', { pageWidth, pageHeight })
-    console.log('- Header/Footer heights (mm):', { headerHeight, footerHeight })
-    console.log('- Content area:', { x: margin, y: headerHeight + margin, width: textWidth, height: textHeight })
-    console.log('- Content length:', pdfDoc.content.length, 'characters')
     
     await addHTMLContentToPDF(pdf, pdfDoc.content, {
       x: margin,
@@ -224,19 +186,18 @@ const addHTMLContentToPDF = async (
   const lineHeight = 6 // Standard line height (matches browser default)
   const brSpacing = 4 // Space added by a <br> tag
   
-  console.log('\n=== DOWNLOAD TEXT RENDERING DEBUG ===')
-  console.log('Rendering options:', options)
+
 
   // Helper function to add header and footer to any page
   const addHeaderAndFooterToPage = async (pdf: jsPDF, pageNumber: number) => {
-    console.log(`📄 Adding header and footer to page ${pageNumber}`)
+
     
     // Add header image
     if (headerImageUrl) {
       try {
         const headerImg = await loadImage(headerImageUrl)
         pdf.addImage(headerImg, 'JPEG', 0, 0, pageWidth, headerHeight)
-        console.log(`✅ Header added to page ${pageNumber}`)
+ 
       } catch (error) {
         console.error(`❌ Failed to load header image for page ${pageNumber}:`, error)
       }
@@ -247,7 +208,7 @@ const addHTMLContentToPDF = async (
       try {
         const footerImg = await loadImage(footerImageUrl)
         pdf.addImage(footerImg, 'JPEG', 0, pageHeight - footerHeight, pageWidth, footerHeight)
-        console.log(`✅ Footer added to page ${pageNumber}`)
+ 
       } catch (error) {
         console.error(`❌ Failed to load footer image for page ${pageNumber}:`, error)
       }
@@ -257,7 +218,7 @@ const addHTMLContentToPDF = async (
   // Parse HTML content and convert to formatted text
   const parsedContent = parseHTMLContent(htmlContent)
   
-  console.log('Starting to render', parsedContent.length, 'elements')
+ 
   
   let currentY = y
   let currentPage = 1
@@ -265,16 +226,11 @@ const addHTMLContentToPDF = async (
   let lastElementType = ''
   
   for (const element of parsedContent) {
-    console.log(`\n--- Processing Element ${renderedElements} ---`)
-    console.log('Element type:', element.type)
-    console.log('Element text preview:', element.text.substring(0, 100) + (element.text.length > 100 ? '...' : ''))
-    console.log('Element text length:', element.text.length)
-    console.log('Current Y position:', currentY)
-    console.log('Current page:', currentPage)
+ 
     
     // Minimal spacing between different content types
     if (lastElementType && lastElementType !== element.type && element.type !== 'spacing') {
-      console.log(`🟡 ELEMENT TRANSITION: ${lastElementType} -> ${element.type}`)
+      
       // Only add minimal spacing for major content type changes
       if (lastElementType === 'h1' || lastElementType === 'h2' || lastElementType === 'h3') {
         currentY += 2 // Minimal spacing after headings
@@ -290,14 +246,12 @@ const addHTMLContentToPDF = async (
     
     // Handle spacing elements (br tags)
     if (element.type === 'spacing') {
-      console.log('Adding br tag spacing')
       currentY += brSpacing
       continue
     }
     
     // Check if we need a new page
     if (currentY + element.height > pageHeight - footerHeight - margin) {
-      console.log('Adding new page - Y position would exceed page bounds')
       pdf.addPage()
       currentPage++
       
@@ -305,20 +259,16 @@ const addHTMLContentToPDF = async (
       await addHeaderAndFooterToPage(pdf, currentPage)
       
       currentY = headerHeight + margin
-      console.log('New page created, current page:', currentPage, 'Y reset to:', currentY)
     }
     
     // Handle headings with proper font sizes and wrapping
     if (element.type === 'h1' || element.type === 'h2' || element.type === 'h3') {
-      console.log(`Rendering ${element.type} heading:`, element.text)
       pdf.setFont('helvetica', 'bold')
       const fontSize = element.type === 'h1' ? 24 : element.type === 'h2' ? 20 : 16
       pdf.setFontSize(fontSize)
-      console.log('Font size set to:', fontSize)
       
       // Wrap heading text if needed
       const wrappedLines = splitTextToLines(pdf, element.text, width)
-      console.log(`Heading wrapped into ${wrappedLines.length} lines:`, wrappedLines)
       
       for (let i = 0; i < wrappedLines.length; i++) {
         const line = wrappedLines[i]
@@ -401,29 +351,37 @@ const addHTMLContentToPDF = async (
       if (element.formattedParts && element.formattedParts.length > 0) {
         console.log('Using formatted parts, count:', element.formattedParts.length)
         
+        // Add indentation for list items
+        const renderX = element.isListItem ? x + 5 : x // 5mm indent for list items
+        const renderWidth = element.isListItem ? width - 5 : width
+        
         // Handle formatted text with wrapping and get the new Y position
-        const newY = await addFormattedTextWithWrapping(pdf, element.formattedParts, x, currentY, width, element.align)
+        const newY = await addFormattedTextWithWrapping(pdf, element.formattedParts, renderX, currentY, renderWidth, element.align)
         currentY = newY
         console.log(`Formatted text rendered, new Y: ${currentY}`)
       } else {
         console.log('Using simple text fallback')
         
+        // Add indentation for list items
+        const renderX = element.isListItem ? x + 5 : x // 5mm indent for list items
+        const renderWidth = element.isListItem ? width - 5 : width
+        
         // Fallback for simple text with wrapping
         pdf.setFont('helvetica', 'normal')
         pdf.setFontSize(14)
         
-        const wrappedLines = splitTextToLines(pdf, element.text, width)
+        const wrappedLines = splitTextToLines(pdf, element.text, renderWidth)
         console.log(`Simple text wrapped into ${wrappedLines.length} lines:`, wrappedLines)
         
         for (let i = 0; i < wrappedLines.length; i++) {
           const line = wrappedLines[i]
           
           // Handle alignment
-          let textX = x
+          let textX = renderX
           if (element.align === 'center') {
-            textX = x + (width - pdf.getTextWidth(line)) / 2
+            textX = renderX + (renderWidth - pdf.getTextWidth(line)) / 2
           } else if (element.align === 'right') {
-            textX = x + width - pdf.getTextWidth(line)
+            textX = renderX + renderWidth - pdf.getTextWidth(line)
           }
           
           console.log(`🟠 SIMPLE LINE: Rendering "${line}" at (${textX}, ${currentY})`)
@@ -678,6 +636,7 @@ const parseHTMLContent = (htmlContent: string) => {
     height: number
     align?: string
     formattedParts?: Array<{ text: string; isBold: boolean; isItalic: boolean }>
+    isListItem?: boolean
   }> = []
   
   // Parse HTML in order by splitting on tags and processing sequentially
@@ -694,7 +653,7 @@ const parseHTMLContent = (htmlContent: string) => {
     
     // Handle headings
     if (part.match(/<h1[^>]*>/i)) {
-      const content = part.replace(/<\/?h1[^>]*>/gi, '').replace(/<[^>]*>/g, '').trim()
+      const content = decodeHTMLEntities(part.replace(/<\/?h1[^>]*>/gi, '').replace(/<[^>]*>/g, '').trim())
       console.log('✅ Added H1:', content || '(empty)')
       elements.push({ type: 'h1', text: content || ' ', height: 20 })
       // If heading contains <br>, add spacing
@@ -703,7 +662,7 @@ const parseHTMLContent = (htmlContent: string) => {
         elements.push({ type: 'spacing', text: '', height: 8 })
       }
     } else if (part.match(/<h2[^>]*>/i)) {
-      const content = part.replace(/<\/?h2[^>]*>/gi, '').replace(/<[^>]*>/g, '').trim()
+      const content = decodeHTMLEntities(part.replace(/<\/?h2[^>]*>/gi, '').replace(/<[^>]*>/g, '').trim())
       console.log('✅ Added H2:', content || '(empty)')
       elements.push({ type: 'h2', text: content || ' ', height: 18 })
       // If heading contains <br>, add spacing
@@ -712,7 +671,7 @@ const parseHTMLContent = (htmlContent: string) => {
         elements.push({ type: 'spacing', text: '', height: 8 })
       }
     } else if (part.match(/<h3[^>]*>/i)) {
-      const content = part.replace(/<\/?h3[^>]*>/gi, '').replace(/<[^>]*>/g, '').trim()
+      const content = decodeHTMLEntities(part.replace(/<\/?h3[^>]*>/gi, '').replace(/<[^>]*>/g, '').trim())
       console.log('✅ Added H3:', content || '(empty)')
       elements.push({ type: 'h3', text: content || ' ', height: 16 })
       // If heading contains <br>, add spacing
@@ -753,7 +712,8 @@ const parseHTMLContent = (htmlContent: string) => {
             type: 'normal',
             text: processedContent.map(c => c.text).join(''),
             height: 15,
-            formattedParts: processedContent
+            formattedParts: processedContent,
+            isListItem: true
           })
         }
       }
@@ -785,7 +745,8 @@ const parseHTMLContent = (htmlContent: string) => {
             type: 'normal',
             text: processedContent.map(c => c.text).join(''),
             height: 15,
-            formattedParts: processedContent
+            formattedParts: processedContent,
+            isListItem: true
           })
         }
       }
@@ -875,31 +836,91 @@ const processFormattedContent = (content: string) => {
     // Check what type of formatting this segment has
     if (segment.match(/<strong[^>]*><em[^>]*>|<em[^>]*><strong[^>]*>/i)) {
       // Bold + Italic
-      const text = segment.replace(/<[^>]*>/g, '')
+      const text = decodeHTMLEntities(segment.replace(/<[^>]*>/g, ''))
       if (text) {
         parts.push({ text, isBold: true, isItalic: true })
       }
     } else if (segment.match(/<strong[^>]*>|<b[^>]*>/i)) {
       // Bold only
-      const text = segment.replace(/<[^>]*>/g, '')
+      const text = decodeHTMLEntities(segment.replace(/<[^>]*>/g, ''))
       if (text) {
         parts.push({ text, isBold: true, isItalic: false })
       }
     } else if (segment.match(/<em[^>]*>|<i[^>]*>/i)) {
       // Italic only
-      const text = segment.replace(/<[^>]*>/g, '')
+      const text = decodeHTMLEntities(segment.replace(/<[^>]*>/g, ''))
       if (text) {
         parts.push({ text, isBold: false, isItalic: true })
       }
     } else if (!segment.match(/<[^>]*>/)) {
       // Plain text (no tags)
       if (segment) {
-        parts.push({ text: segment, isBold: false, isItalic: false })
+        parts.push({ text: decodeHTMLEntities(segment), isBold: false, isItalic: false })
       }
     }
   }
   
   return parts
+}
+
+// Helper function to decode HTML entities
+const decodeHTMLEntities = (text: string): string => {
+  const entities: Record<string, string> = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&nbsp;': ' ',
+    '&copy;': '©',
+    '&reg;': '®',
+    '&trade;': '™',
+    '&euro;': '€',
+    '&pound;': '£',
+    '&yen;': '¥',
+    '&cent;': '¢',
+    '&sect;': '§',
+    '&para;': '¶',
+    '&dagger;': '†',
+    '&Dagger;': '‡',
+    '&bull;': '•',
+    '&hellip;': '…',
+    '&prime;': '′',
+    '&Prime;': '″',
+    '&lsaquo;': '‹',
+    '&rsaquo;': '›',
+    '&laquo;': '«',
+    '&raquo;': '»',
+    '&ndash;': '–',
+    '&mdash;': '—',
+    '&lsquo;': '\u2018',
+    '&rsquo;': '\u2019',
+    '&sbquo;': '\u201A',
+    '&ldquo;': '\u201C',
+    '&rdquo;': '\u201D',
+    '&bdquo;': '\u201E',
+    '&rarr;': '→',
+    '&#8594;': '→',
+    '&rarr': '→'
+  }
+  
+  let decoded = text
+  
+  // Replace named entities
+  for (const [entity, char] of Object.entries(entities)) {
+    decoded = decoded.replace(new RegExp(entity, 'g'), char)
+  }
+  
+  // Replace numeric entities (e.g., &#8217; or &#x2019;)
+  decoded = decoded.replace(/&#(\d+);/g, (match, dec) => {
+    return String.fromCharCode(parseInt(dec, 10))
+  })
+  
+  decoded = decoded.replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
+    return String.fromCharCode(parseInt(hex, 16))
+  })
+  
+  return decoded
 }
 
 const loadImage = async (url: string): Promise<string> => {

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { usePDFGeneration } from '@/hooks/usePDFGeneration'
 import { toast } from 'react-hot-toast'
 import PDFEditor from '@/components/PDFEditor'
+import PDFPreviewModal from '@/components/PDFPreviewModal'
 import './PDFPreview.css'
 
 interface PDFCreationModalProps {
@@ -23,25 +24,28 @@ interface PDFCreationModalProps {
   }
   onClose: () => void
   userId?: string
+  initialContent?: string
+  pdfId?: string
+  isEditMode?: boolean
 }
 
-export default function PDFCreationModal({ preset, onClose, userId }: PDFCreationModalProps) {
-  const [content, setContent] = useState('')
+export default function PDFCreationModal({ preset, onClose, userId, initialContent = '', pdfId, isEditMode = false }: PDFCreationModalProps) {
+  const [content, setContent] = useState(initialContent)
   const [mounted, setMounted] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [saving, setSaving] = useState(false)
   const generatePDFMutation = usePDFGeneration()
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Log content changes for debugging
   useEffect(() => {
-    console.log('\n=== 🔍 MODAL CONTENT CHANGE DEBUG ===')
-    console.log('Content length:', content.length)
-    console.log('Content preview (first 300 chars):', content.substring(0, 300))
-    console.log('Full content:', content)
-    console.log('=== END CONTENT DEBUG ===\n')
-  }, [content])
+    if (initialContent) {
+      setContent(initialContent)
+    }
+  }, [initialContent])
+
 
   const handleGeneratePDF = async () => {
     if (!content.trim()) {
@@ -49,21 +53,50 @@ export default function PDFCreationModal({ preset, onClose, userId }: PDFCreatio
       return
     }
 
-    if (!userId) {
-      toast.error('User ID is required')
-      return
-    }
+    if (isEditMode && pdfId) {
+      // Update existing PDF
+      setSaving(true)
+      try {
+        const response = await fetch(`/api/pdf/${pdfId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content }),
+        })
 
-    generatePDFMutation.mutate({
-      presetId: preset.id,
-      content,
-      userId
-    }, {
-      onSuccess: () => {
-        // Close modal after successful generation
+        if (!response.ok) {
+          throw new Error('Failed to update PDF')
+        }
+
+        toast.success('PDF updated successfully!')
         onClose()
+        // Reload the page to refresh the PDF list
+        window.location.reload()
+      } catch (error) {
+        console.error('Update error:', error)
+        toast.error('Failed to update PDF')
+      } finally {
+        setSaving(false)
       }
-    })
+    } else {
+      // Create new PDF
+      if (!userId) {
+        toast.error('User ID is required')
+        return
+      }
+
+      generatePDFMutation.mutate({
+        presetId: preset.id,
+        content,
+        userId
+      }, {
+        onSuccess: () => {
+          // Close modal after successful generation
+          onClose()
+        }
+      })
+    }
   }
 
 
@@ -74,7 +107,7 @@ export default function PDFCreationModal({ preset, onClose, userId }: PDFCreatio
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-gray-900">
-              Create PDF: {preset.name}
+              {isEditMode ? 'Edit PDF' : 'Create PDF'}: {preset.name}
             </h3>
             <button
               onClick={onClose}
@@ -93,7 +126,22 @@ export default function PDFCreationModal({ preset, onClose, userId }: PDFCreatio
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   PDF Content
                 </label>
-                <div className="flex-1">
+                <div 
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    console.log('🔑 PDFCreationModal KeyDown:', {
+                      key: e.key,
+                      keyCode: e.keyCode,
+                      target: e.target,
+                      currentTarget: e.currentTarget
+                    })
+                    // Prevent parent scroll container from capturing Enter key
+                    if (e.key === 'Enter') {
+                      console.log('✅ Enter key detected - stopping propagation')
+                      e.stopPropagation()
+                    }
+                  }}
+                >
                   <PDFEditor
                     value={content}
                     onChange={setContent}
@@ -243,23 +291,34 @@ export default function PDFCreationModal({ preset, onClose, userId }: PDFCreatio
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200 flex-shrink-0">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleGeneratePDF}
-              disabled={generatePDFMutation.isPending || !content.trim()}
-              className="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {generatePDFMutation.isPending ? 'Generating PDF...' : 'Generate PDF'}
-            </button>
+          <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200 flex-shrink-0">
+            <div className="flex space-x-3">
+              <button
+                onClick={onClose}
+                className="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGeneratePDF}
+                disabled={generatePDFMutation.isPending || saving || !content.trim()}
+                className="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {saving ? 'Saving...' : generatePDFMutation.isPending ? 'Generating PDF...' : isEditMode ? 'Save Changes' : 'Generate PDF'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <PDFPreviewModal
+          content={content}
+          presetName={preset.name}
+          onClose={() => setShowPreview(false)}
+        />
+      )}
     </div>
   )
 }
