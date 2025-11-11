@@ -21,7 +21,6 @@ export default function SignupPage() {
       if (error) {
         toast.error(error.message)
       } else {
-        toast.success('Check your email for verification link!')
         router.push('/login')
       }
     } catch (error) {

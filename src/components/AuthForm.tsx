@@ -33,7 +33,7 @@ export default function AuthForm({ onSuccess }: AuthFormProps) {
           console.error(error)
           toast.error(error.message)
         } else {
-          toast.success('Check your email for verification link!')
+          console.log('Check your email for verification link!')
         }
       }
     } catch (error) {
