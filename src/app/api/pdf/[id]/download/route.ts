@@ -484,7 +484,7 @@ const calculateLinesUsed = (pdf: jsPDF, text: string, maxWidth: number, fontSize
 // Helper function to add formatted text with proper wrapping
 const addFormattedTextWithWrapping = async (
   pdf: jsPDF, 
-  formattedParts: Array<{ text: string; isBold: boolean; isItalic: boolean }>, 
+  formattedParts: Array<{ text: string; isBold: boolean; isItalic: boolean; fontSize?: number; fontFamily?: string }>, 
   x: number, 
   startY: number, 
   maxWidth: number, 
@@ -494,16 +494,17 @@ const addFormattedTextWithWrapping = async (
   console.log('Start Y position:', startY)
   console.log('Max width:', maxWidth)
   console.log('Formatted parts count:', formattedParts.length)
-  formattedParts.forEach((part, i) => {
-    console.log(`  Part ${i}: "${part.text}" (bold: ${part.isBold}, italic: ${part.isItalic})`)
-  })
+  // Log formatted parts for debugging if needed
+  // formattedParts.forEach((part, i) => {
+  //   console.log(`  Part ${i}: "${part.text}" (bold: ${part.isBold}, italic: ${part.isItalic}, fontSize: ${(part as any).fontSize || 'default'}, fontFamily: ${(part as any).fontFamily || 'default'})`)
+  // })
   
   let currentY = startY
   let currentX = x
   let currentLine = ''
   let currentLineWidth = 0
   const lineHeight = 6 // Base line height in mm
-  const parts: Array<{ text: string; x: number; isBold: boolean; isItalic: boolean }> = []
+  const parts: Array<{ text: string; x: number; isBold: boolean; isItalic: boolean; fontSize?: number; fontFamily?: string }> = []
   
   console.log('Initial line height set to:', lineHeight, 'mm')
 
@@ -525,8 +526,10 @@ const addFormattedTextWithWrapping = async (
       } else if (part.isItalic) {
         fontStyle = 'italic'
       }
-      pdf.setFont('helvetica', fontStyle)
-      pdf.setFontSize(14)
+      const fontFamily = part.fontFamily || 'helvetica'
+      const fontSize = part.fontSize || 14
+      pdf.setFont(fontFamily, fontStyle)
+      pdf.setFontSize(fontSize)
       
       const testWidth = pdf.getTextWidth(testText)
       
@@ -556,7 +559,9 @@ const addFormattedTextWithWrapping = async (
           text: testText.trim(),
           x: currentX,
           isBold: part.isBold,
-          isItalic: part.isItalic
+          isItalic: part.isItalic,
+          fontSize: part.fontSize,
+          fontFamily: part.fontFamily
         })
       }
     }
@@ -594,8 +599,10 @@ const renderLine = async (
     } else if (part.isItalic) {
       fontStyle = 'italic'
     }
-    pdf.setFont('helvetica', fontStyle)
-    pdf.setFontSize(14)
+    const fontFamily = (part as any).fontFamily || 'helvetica'
+    const fontSize = (part as any).fontSize || 14
+    pdf.setFont(fontFamily, fontStyle)
+    pdf.setFontSize(fontSize)
     totalWidth += pdf.getTextWidth(part.text + ' ')
   }
 
@@ -619,9 +626,11 @@ const renderLine = async (
       fontStyle = 'italic'
     }
     
-    pdf.setFont('helvetica', fontStyle)
-    pdf.setFontSize(14)
-    console.log(`🔸 DOWNLOAD RENDER PART: "${part.text}" at (${currentX}, ${y})`)
+    const fontFamily = (part as any).fontFamily || 'helvetica'
+    const fontSize = (part as any).fontSize || 14
+    pdf.setFont(fontFamily, fontStyle)
+    pdf.setFontSize(fontSize)
+    console.log(`🔸 DOWNLOAD RENDER PART: "${part.text}" at (${currentX}, ${y}) [Font: ${fontFamily}, Size: ${fontSize}]`)
     pdf.text(part.text, currentX, y)
     const textWidth = pdf.getTextWidth(part.text + ' ')
     console.log(`🔸 DOWNLOAD RENDER PART: Text width: ${textWidth}, moving X: ${currentX} -> ${currentX + textWidth}`)
@@ -635,7 +644,9 @@ const parseHTMLContent = (htmlContent: string) => {
     text: string
     height: number
     align?: string
-    formattedParts?: Array<{ text: string; isBold: boolean; isItalic: boolean }>
+    fontSize?: number
+    fontFamily?: string
+    formattedParts?: Array<{ text: string; isBold: boolean; isItalic: boolean; fontSize?: number; fontFamily?: string }>
     isListItem?: boolean
   }> = []
   
@@ -754,56 +765,72 @@ const parseHTMLContent = (htmlContent: string) => {
     // Handle paragraphs with alignment
     else if (part.match(/<p[^>]*class="[^"]*ql-align-center/i)) {
       const content = part.replace(/<\/?p[^>]*>/gi, '')
-    const processedContent = processFormattedContent(content)
-    if (processedContent.length > 0) {
+      const processedContent = processFormattedContent(content)
+      const fontSize = extractFontSize(part)
+      const fontFamily = extractFontFamily(part)
+      if (processedContent.length > 0) {
         console.log('✅ Added center-aligned paragraph:', processedContent.map(c => c.text).join(''))
-      elements.push({
-        type: 'normal',
-        text: processedContent.map(c => c.text).join(''),
-        height: 15,
-        align: 'center',
-        formattedParts: processedContent
-      })
-    }
+        elements.push({
+          type: 'normal',
+          text: processedContent.map(c => c.text).join(''),
+          height: 15,
+          align: 'center',
+          fontSize,
+          fontFamily,
+          formattedParts: processedContent
+        })
+      }
     } else if (part.match(/<p[^>]*class="[^"]*ql-align-right/i)) {
       const content = part.replace(/<\/?p[^>]*>/gi, '')
-    const processedContent = processFormattedContent(content)
-    if (processedContent.length > 0) {
+      const processedContent = processFormattedContent(content)
+      const fontSize = extractFontSize(part)
+      const fontFamily = extractFontFamily(part)
+      if (processedContent.length > 0) {
         console.log('✅ Added right-aligned paragraph:', processedContent.map(c => c.text).join(''))
-      elements.push({
-        type: 'normal',
-        text: processedContent.map(c => c.text).join(''),
-        height: 15,
-        align: 'right',
-        formattedParts: processedContent
-      })
-    }
+        elements.push({
+          type: 'normal',
+          text: processedContent.map(c => c.text).join(''),
+          height: 15,
+          align: 'right',
+          fontSize,
+          fontFamily,
+          formattedParts: processedContent
+        })
+      }
     } else if (part.match(/<p[^>]*class="[^"]*ql-align-justify/i)) {
       const content = part.replace(/<\/?p[^>]*>/gi, '')
-    const processedContent = processFormattedContent(content)
-    if (processedContent.length > 0) {
+      const processedContent = processFormattedContent(content)
+      const fontSize = extractFontSize(part)
+      const fontFamily = extractFontFamily(part)
+      if (processedContent.length > 0) {
         console.log('✅ Added justified paragraph:', processedContent.map(c => c.text).join(''))
-      elements.push({
-        type: 'normal',
-        text: processedContent.map(c => c.text).join(''),
-        height: 15,
-        align: 'justify',
-        formattedParts: processedContent
-      })
-    }
+        elements.push({
+          type: 'normal',
+          text: processedContent.map(c => c.text).join(''),
+          height: 15,
+          align: 'justify',
+          fontSize,
+          fontFamily,
+          formattedParts: processedContent
+        })
+      }
     }
     // Handle regular paragraphs - add spacing for natural line breaks
     else if (part.match(/<p[^>]*>/i)) {
       const content = part.replace(/<\/?p[^>]*>/gi, '')
-    const processedContent = processFormattedContent(content)
-    if (processedContent.length > 0) {
+      const processedContent = processFormattedContent(content)
+      const fontSize = extractFontSize(part)
+      const fontFamily = extractFontFamily(part)
+      if (processedContent.length > 0) {
         console.log('✅ Added paragraph with natural line break:', processedContent.map(c => c.text).join('').substring(0, 100))
-      elements.push({
-        type: 'normal',
-        text: processedContent.map(c => c.text).join(''),
-        height: 15,
-        formattedParts: processedContent
-      })
+        elements.push({
+          type: 'normal',
+          text: processedContent.map(c => c.text).join(''),
+          height: 15,
+          fontSize,
+          fontFamily,
+          formattedParts: processedContent
+        })
         // Add minimal spacing after paragraph for natural line breaks (copy-paste content)
         elements.push({ type: 'spacing', text: '', height: 3 })
       }
@@ -819,43 +846,88 @@ const parseHTMLContent = (htmlContent: string) => {
   return elements
 }
 
+// Helper function to extract font size from style attribute
+const extractFontSize = (htmlString: string): number | undefined => {
+  const styleMatch = htmlString.match(/style="([^"]*)"/i)
+  if (styleMatch) {
+    const fontSizeMatch = styleMatch[1].match(/font-size:\s*([0-9.]+)px/i)
+    if (fontSizeMatch) {
+      return parseFloat(fontSizeMatch[1])
+    }
+  }
+  return undefined
+}
+
+// Helper function to extract font family from class attribute
+const extractFontFamily = (htmlString: string): string | undefined => {
+  const classMatch = htmlString.match(/class="([^"]*)"/i)
+  if (classMatch) {
+    const classes = classMatch[1].split(' ')
+    const fontClass = classes.find(c => c.startsWith('ql-font-'))
+    if (fontClass) {
+      const fontName = fontClass.replace('ql-font-', '')
+      // Map font class names to actual font families (jsPDF only supports helvetica, times, courier)
+      const fontMap: Record<string, string> = {
+        'sans-serif': 'helvetica',
+        'times-new-roman': 'times',
+        'courier-new': 'courier'
+      }
+      return fontMap[fontName] || 'helvetica'
+    }
+  }
+  return undefined
+}
+
 // Helper function to process formatted content while preserving order
 const processFormattedContent = (content: string) => {
-  const parts: Array<{ text: string; isBold: boolean; isItalic: boolean }> = []
+  const parts: Array<{ text: string; isBold: boolean; isItalic: boolean; fontSize?: number; fontFamily?: string }> = []
   
   // Remove underline tags but keep the content
   content = content.replace(/<\/?u[^>]*>/gi, '')
   
-  // Parse HTML in order to preserve text sequence
-  const regex = /(<strong[^>]*><em[^>]*>.*?<\/em><\/strong>|<em[^>]*><strong[^>]*>.*?<\/strong><\/em>|<strong[^>]*>.*?<\/strong>|<b[^>]*>.*?<\/b>|<em[^>]*>.*?<\/em>|<i[^>]*>.*?<\/i>|[^<]+)/gi
+  // Parse HTML in order to preserve text sequence - NOW INCLUDING SPAN TAGS
+  const regex = /(<span[^>]*>.*?<\/span>|<strong[^>]*><em[^>]*>.*?<\/em><\/strong>|<em[^>]*><strong[^>]*>.*?<\/strong><\/em>|<strong[^>]*>.*?<\/strong>|<b[^>]*>.*?<\/b>|<em[^>]*>.*?<\/em>|<i[^>]*>.*?<\/i>|[^<]+)/gi
   
   let match
   while ((match = regex.exec(content)) !== null) {
     const segment = match[0]
     
+    // Extract font properties from the segment
+    const fontSize = extractFontSize(segment)
+    const fontFamily = extractFontFamily(segment)
+    
     // Check what type of formatting this segment has
-    if (segment.match(/<strong[^>]*><em[^>]*>|<em[^>]*><strong[^>]*>/i)) {
+    if (segment.match(/<span[^>]*>/i)) {
+      // Span tag (may contain font styles)
+      const text = decodeHTMLEntities(segment.replace(/<[^>]*>/g, ''))
+      if (text) {
+        // Check if the span contains bold/italic tags inside
+        const isBold = segment.includes('<strong>') || segment.includes('<b>')
+        const isItalic = segment.includes('<em>') || segment.includes('<i>')
+        parts.push({ text, isBold, isItalic, fontSize, fontFamily })
+      }
+    } else if (segment.match(/<strong[^>]*><em[^>]*>|<em[^>]*><strong[^>]*>/i)) {
       // Bold + Italic
       const text = decodeHTMLEntities(segment.replace(/<[^>]*>/g, ''))
       if (text) {
-        parts.push({ text, isBold: true, isItalic: true })
+        parts.push({ text, isBold: true, isItalic: true, fontSize, fontFamily })
       }
     } else if (segment.match(/<strong[^>]*>|<b[^>]*>/i)) {
       // Bold only
       const text = decodeHTMLEntities(segment.replace(/<[^>]*>/g, ''))
       if (text) {
-        parts.push({ text, isBold: true, isItalic: false })
+        parts.push({ text, isBold: true, isItalic: false, fontSize, fontFamily })
       }
     } else if (segment.match(/<em[^>]*>|<i[^>]*>/i)) {
       // Italic only
       const text = decodeHTMLEntities(segment.replace(/<[^>]*>/g, ''))
       if (text) {
-        parts.push({ text, isBold: false, isItalic: true })
+        parts.push({ text, isBold: false, isItalic: true, fontSize, fontFamily })
       }
     } else if (!segment.match(/<[^>]*>/)) {
       // Plain text (no tags)
       if (segment) {
-        parts.push({ text: decodeHTMLEntities(segment), isBold: false, isItalic: false })
+        parts.push({ text: decodeHTMLEntities(segment), isBold: false, isItalic: false, fontSize, fontFamily })
       }
     }
   }

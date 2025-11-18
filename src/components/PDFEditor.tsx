@@ -3,9 +3,13 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import 'react-quill-new/dist/quill.snow.css'
+import type * as Parchment from 'parchment';
+import { Quill } from 'react-quill-new';
+import { ClassAttributor, StyleAttributor } from 'parchment';
+
 
 // Dynamically import ReactQuill to avoid SSR issues and React 18 compatibility
-const ReactQuill = dynamic(() => import('react-quill-new'), { 
+const ReactQuill = dynamic(() => import('react-quill-new'), {
   ssr: false,
   loading: () => <div className="p-4 bg-gray-100 animate-pulse">Loading editor...</div>
 })
@@ -28,6 +32,31 @@ export default function PDFEditor({
   const [mounted, setMounted] = useState(false)
   const [content, setContent] = useState(value)
 
+
+
+
+useEffect(() => {
+  if (typeof window === 'undefined') return;
+
+  const FontAttributor = Quill.import('attributors/class/font') as ClassAttributor;
+  // Only include fonts supported by jsPDF: Helvetica (sans-serif), Times (serif), Courier (monospace)
+  (FontAttributor as any).whitelist = [
+    'sans-serif',      // Maps to Helvetica in PDF
+    'times-new-roman', // Maps to Times in PDF
+    'courier-new'      // Maps to Courier in PDF
+  ];
+  Quill.register(FontAttributor, true);
+
+  const SizeAttributor = Quill.import('attributors/style/size') as StyleAttributor;
+  // Optimized font sizes for PDF rendering
+  (SizeAttributor as any).whitelist = [
+    '8px','10px','12px','14px','16px','18px','20px','24px','28px','32px','36px','48px'
+  ];
+  Quill.register(SizeAttributor, true);
+}, []);
+
+
+
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -41,16 +70,16 @@ export default function PDFEditor({
     // Find all list containers (ol or ul)
     const listRegex = /<(ol|ul)[^>]*>.*?<\/\1>/gi
     let result = html
-    
+
     let match
     while ((match = listRegex.exec(html)) !== null) {
       const fullList = match[0]
       const listTag = match[1] // 'ol' or 'ul'
-      
+
       // Extract all li elements with their data-list attributes
       const liRegex = /<li[^>]*data-list="([^"]*)"[^>]*>.*?<\/li>/gi
       const listItems: Array<{ html: string; dataList: string }> = []
-      
+
       let liMatch
       while ((liMatch = liRegex.exec(fullList)) !== null) {
         listItems.push({
@@ -58,12 +87,12 @@ export default function PDFEditor({
           dataList: liMatch[1]
         })
       }
-      
+
       // Group consecutive items with the same data-list attribute
       if (listItems.length > 0) {
         const groups: Array<{ dataList: string; items: string[] }> = []
         let currentGroup = { dataList: listItems[0].dataList, items: [listItems[0].html] }
-        
+
         for (let i = 1; i < listItems.length; i++) {
           if (listItems[i].dataList === currentGroup.dataList) {
             currentGroup.items.push(listItems[i].html)
@@ -73,7 +102,7 @@ export default function PDFEditor({
           }
         }
         groups.push(currentGroup)
-        
+
         // If we have multiple groups, split the list
         if (groups.length > 1) {
           const newLists = groups.map(group => {
@@ -82,83 +111,199 @@ export default function PDFEditor({
             const startAttr = tag === 'ol' ? ' start="1"' : ''
             return `<${tag}${startAttr}>${group.items.join('')}</${tag}>`
           })
-          
+
           result = result.replace(fullList, newLists.join(''))
         }
       }
     }
-    
+
     return result
   }
 
   const handleChange = (html: string) => {
     console.log('📝 Editor handleChange - Raw HTML:', html)
     setContent(html)
-    
-    // Clean up the HTML to remove Quill-specific classes and attributes
+
+    // Clean up the HTML but PRESERVE font-related styles and classes
     let cleanedHtml = html
-      .replace(/class="(?!ql-align-)[^"]*"/g, '') // Remove all class attributes except alignment classes
-      .replace(/style="[^"]*"/g, '') // Remove all style attributes
-      .replace(/<span[^>]*>/g, '') // Remove span tags
-      .replace(/<\/span>/g, '') // Remove closing span tags
-      .replace(/<strong><\/strong>/g, '') // Remove empty strong tags
-      .replace(/<em><\/em>/g, '') // Remove empty em tags
-      .replace(/<u><\/u>/g, '') // Remove empty u tags
-      // DON'T remove <p></p> or <p><br></p> - Quill uses these for new lines!
+      // Keep ql-align-, ql-font- classes (font family classes)
+      .replace(/class="([^"]*)"/g, (match, classes) => {
+        const keepClasses = classes.split(' ').filter((c: string) => 
+          c.startsWith('ql-align-') || c.startsWith('ql-font-')
+        )
+        return keepClasses.length > 0 ? `class="${keepClasses.join(' ')}"` : ''
+      })
+      // Keep only font-size, color, background-color, and text-align styles
+      .replace(/style="([^"]*)"/g, (match, styles) => {
+        const keepStyles = styles.split(';')
+          .filter((s: string) => s.trim())
+          .filter((s: string) => {
+            const prop = s.split(':')[0].trim()
+            return ['font-size', 'color', 'background-color', 'text-align'].includes(prop)
+          })
+        return keepStyles.length > 0 ? `style="${keepStyles.join(';')}"` : ''
+      })
+      // Remove empty spans that don't have font classes or styles
+      .replace(/<span[^>]*><\/span>/g, '')
+      // Remove empty formatting tags
+      .replace(/<strong><\/strong>/g, '')
+      .replace(/<em><\/em>/g, '')
+      .replace(/<u><\/u>/g, '')
       .trim()
 
     // Fix: Split lists when data-list attribute changes to restart numbering
     cleanedHtml = splitListsByDataListAttribute(cleanedHtml)
-    
+
     console.log('✨ Editor handleChange - Cleaned HTML:', cleanedHtml)
 
     onChange?.(cleanedHtml)
   }
 
-  // Quill modules configuration
+  // Quill modules configuration - Essential formatting only
   const modules = {
     toolbar: [
-      [{ 'header': [1, 2, 3, false] }], // H1, H2, H3 dropdowns
-      ['bold', 'italic', 'underline'], // Text formatting
-      [{ 'align': [] }], // Text alignment (left, center, right, justify)
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }], // Lists
-      ['clean'] // Remove formatting
+      [
+        { font: ['sans-serif', 'times-new-roman', 'courier-new'] },
+        { size: ['8px', '10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '48px'] }
+      ],
+      ['bold', 'italic', 'underline'],
+      [{ header: [1, 2, 3, false] }],
+      [{ align: [] }],
+      [{ list: 'ordered' }, { list: 'bullet' }]
     ],
     clipboard: {
       matchVisual: false
-    },
-    keyboard: {
-      bindings: {
-        // Override Enter key to always create a new paragraph
-        enter: {
-          key: 13,
-          handler: function(this: any) {
-            const range = this.quill.getSelection()
-            if (range) {
-              // Insert a new line
-              this.quill.insertText(range.index, '\n')
-              // Move cursor to the new line
-              this.quill.setSelection(range.index + 1)
-            }
-            return false // Prevent default
-          }
-        }
-      }
     }
   }
 
-  // Quill formats configuration
+  // Quill formats configuration - Only essential formats
   const formats = [
-    'header',
+    'header', 'font', 'size',
     'bold', 'italic', 'underline',
     'align',
-    'list', // For both ordered and bullet lists
+    'list', 'bullet', 'ordered'
   ]
+
+  // Register fonts with Quill when component mounts
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // This will be handled by the Quill component's modules configuration
+      // The actual font and size handling is now done through CSS and Quill's built-in formats
+    }
+  }, []);
+
+
+
+
+  // Add font size and family styles to the document
+  useEffect(() => {
+    // Add font size styles
+    const sizeStyle = document.createElement('style')
+    sizeStyle.textContent = `
+      /* Font family dropdown items - Only 3 fonts supported by jsPDF */
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="sans-serif"]::before { 
+        content: "Helvetica (Sans Serif)"; 
+        font-family: Helvetica, Arial, sans-serif; 
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="times-new-roman"]::before { 
+        content: "Times (Serif)"; 
+        font-family: "Times New Roman", Times, serif; 
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="courier-new"]::before { 
+        content: "Courier (Monospace)"; 
+        font-family: "Courier New", Courier, monospace; 
+      }
+
+      /* Show selected font in toolbar label */
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="sans-serif"]::before { content: "Helvetica"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="times-new-roman"]::before { content: "Times"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="courier-new"]::before { content: "Courier"; }
+
+      /* Editor content font classes */
+      .ql-editor .ql-font-sans-serif { font-family: Helvetica, Arial, sans-serif; }
+      .ql-editor .ql-font-times-new-roman { font-family: "Times New Roman", Times, serif; }
+      .ql-editor .ql-font-courier-new { font-family: "Courier New", Courier, monospace; }
+
+      /* Font size dropdown items */
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="8px"]::before {
+        content: '8px';
+        font-size: 8px !important;
+      }
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10px"]::before {
+        content: '10px';
+        font-size: 10px !important;
+      }
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before {
+        content: '12px';
+        font-size: 12px !important;
+      }
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before {
+        content: '14px';
+        font-size: 14px !important;
+      }
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="16px"]::before {
+        content: '16px';
+        font-size: 16px !important;
+      }
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before {
+        content: '18px';
+        font-size: 18px !important;
+      }
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before {
+        content: '20px';
+        font-size: 20px !important;
+      }
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before {
+        content: '24px';
+        font-size: 24px !important;
+      }
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="28px"]::before {
+        content: '28px';
+        font-size: 28px !important;
+      }
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="32px"]::before {
+        content: '32px';
+        font-size: 32px !important;
+      }
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before {
+        content: '36px';
+        font-size: 36px !important;
+      }
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="48px"]::before {
+        content: '48px';
+        font-size: 48px !important;
+      }
+
+      /* Show selected size in toolbar label */
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="8px"]::before { content: '8px'; }
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="10px"]::before { content: '10px'; }
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before { content: '12px'; }
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before { content: '14px'; }
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="16px"]::before { content: '16px'; }
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before { content: '18px'; }
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before { content: '20px'; }
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before { content: '24px'; }
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="28px"]::before { content: '28px'; }
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="32px"]::before { content: '32px'; }
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before { content: '36px'; }
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="48px"]::before { content: '48px'; }
+      
+      /* Global font classes for preview and PDF - Only 3 supported fonts */
+      .ql-font-sans-serif { font-family: Helvetica, Arial, sans-serif !important; }
+      .ql-font-times-new-roman { font-family: "Times New Roman", Times, serif !important; }
+      .ql-font-courier-new { font-family: "Courier New", Courier, monospace !important; }
+    `
+    document.head.appendChild(sizeStyle)
+
+    return () => {
+      document.head.removeChild(sizeStyle)
+    }
+  }, [])
 
   if (!mounted) {
     return (
       <div className="border border-gray-300 rounded-md">
-        <div 
+        <div
           className="p-4 animate-pulse bg-gray-100 flex items-center justify-center"
           style={{ minHeight }}
         >
@@ -169,8 +314,8 @@ export default function PDFEditor({
   }
 
   return (
-    <div 
-      className="border border-gray-300 rounded-md flex flex-col" 
+    <div
+      className="border border-gray-300 rounded-md flex flex-col"
       style={{ height: '500px' }}
       onKeyDown={(e) => {
         console.log('🎹 PDFEditor Container KeyDown:', {
@@ -181,7 +326,7 @@ export default function PDFEditor({
           target: (e.target as HTMLElement).className,
           isQuillEditor: (e.target as HTMLElement).classList?.contains('ql-editor')
         })
-        
+
         if (e.key === 'Enter') {
           console.log('⚡ Enter key in PDFEditor - NOT preventing default')
           // Don't prevent default - let Quill handle it
@@ -315,7 +460,7 @@ export default function PDFEditor({
           }
         ` : ''}
       `}</style>
-      
+
       {(() => {
         try {
           return (

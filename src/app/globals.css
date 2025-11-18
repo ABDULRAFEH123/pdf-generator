@@ -18,3 +18,14 @@
   border-left: 1px solid #ccc;
   border-right: 1px solid #ccc;
 }
+
+/* Global font family classes for preview and PDF rendering */
+/* Only 3 fonts are supported by jsPDF: Helvetica, Times, Courier */
+.ql-font-sans-serif { font-family: Helvetica, Arial, sans-serif !important; }
+.ql-font-times-new-roman { font-family: "Times New Roman", Times, serif !important; }
+.ql-font-courier-new { font-family: "Courier New", Courier, monospace !important; }
+
+/* Ensure font sizes are preserved in preview */
+.pdf-preview-content * {
+  font-size: inherit;
+}
