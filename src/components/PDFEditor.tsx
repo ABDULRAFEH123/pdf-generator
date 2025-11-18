@@ -3,10 +3,6 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import 'react-quill-new/dist/quill.snow.css'
-import type * as Parchment from 'parchment';
-import { Quill } from 'react-quill-new';
-import { ClassAttributor, StyleAttributor } from 'parchment';
-
 
 // Dynamically import ReactQuill to avoid SSR issues and React 18 compatibility
 const ReactQuill = dynamic(() => import('react-quill-new'), {
@@ -38,21 +34,24 @@ export default function PDFEditor({
 useEffect(() => {
   if (typeof window === 'undefined') return;
 
-  const FontAttributor = Quill.import('attributors/class/font') as ClassAttributor;
-  // Only include fonts supported by jsPDF: Helvetica (sans-serif), Times (serif), Courier (monospace)
-  (FontAttributor as any).whitelist = [
-    'sans-serif',      // Maps to Helvetica in PDF
-    'times-new-roman', // Maps to Times in PDF
-    'courier-new'      // Maps to Courier in PDF
-  ];
-  Quill.register(FontAttributor, true);
+  // Dynamically import Quill only in the browser
+  import('react-quill-new').then(({ Quill }) => {
+    const FontAttributor = Quill.import('attributors/class/font') as any;
+    // Only include fonts supported by jsPDF: Helvetica (sans-serif), Times (serif), Courier (monospace)
+    FontAttributor.whitelist = [
+      'sans-serif',      // Maps to Helvetica in PDF
+      'times-new-roman', // Maps to Times in PDF
+      'courier-new'      // Maps to Courier in PDF
+    ];
+    Quill.register(FontAttributor, true);
 
-  const SizeAttributor = Quill.import('attributors/style/size') as StyleAttributor;
-  // Optimized font sizes for PDF rendering
-  (SizeAttributor as any).whitelist = [
-    '8px','10px','12px','14px','16px','18px','20px','24px','28px','32px','36px','48px'
-  ];
-  Quill.register(SizeAttributor, true);
+    const SizeAttributor = Quill.import('attributors/style/size') as any;
+    // Optimized font sizes for PDF rendering
+    SizeAttributor.whitelist = [
+      '8px','10px','12px','14px','16px','18px','20px','24px','28px','32px','36px','48px'
+    ];
+    Quill.register(SizeAttributor, true);
+  });
 }, []);
 
 
@@ -195,8 +194,10 @@ useEffect(() => {
 
 
 
-  // Add font size and family styles to the document
+  // Add font size and family styles to the document (browser only)
   useEffect(() => {
+    if (typeof document === 'undefined') return
+
     // Add font size styles
     const sizeStyle = document.createElement('style')
     sizeStyle.textContent = `
@@ -293,6 +294,7 @@ useEffect(() => {
       .ql-font-times-new-roman { font-family: "Times New Roman", Times, serif !important; }
       .ql-font-courier-new { font-family: "Courier New", Courier, monospace !important; }
     `
+
     document.head.appendChild(sizeStyle)
 
     return () => {

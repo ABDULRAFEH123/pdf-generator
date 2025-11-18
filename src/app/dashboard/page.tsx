@@ -1,5 +1,8 @@
 'use client'
 
+// Force dynamic rendering - do not prerender this page
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { usePresets } from '@/hooks/usePresets'

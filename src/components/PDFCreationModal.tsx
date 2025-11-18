@@ -205,43 +205,44 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
                         className="pdf-preview-content"
                         dangerouslySetInnerHTML={{ __html: content }}
                         ref={(el) => {
-                          if (el) {
-                            console.log('\n=== 📺 PREVIEW RENDER DEBUG ===')
-                            console.log('Preview innerHTML:', el.innerHTML.substring(0, 300))
-                            console.log('Preview full HTML:', el.innerHTML)
-                            console.log('List items in preview:', el.querySelectorAll('li').length)
-                            
-                            // FIX: Convert OL to UL when data-list="bullet" and vice versa
-                            el.querySelectorAll('ol').forEach((ol) => {
-                              const firstLi = ol.querySelector('li')
-                              if (firstLi && firstLi.getAttribute('data-list') === 'bullet') {
-                                console.log('🔧 Converting OL to UL (has bullet data-list)')
-                                const ul = document.createElement('ul')
-                                ul.innerHTML = ol.innerHTML
-                                ol.replaceWith(ul)
-                              }
+                          // This ref runs only in the browser, but add an explicit guard for safety
+                          if (!el || typeof document === 'undefined' || typeof window === 'undefined') return
+
+                          console.log('\n=== 📺 PREVIEW RENDER DEBUG ===')
+                          console.log('Preview innerHTML:', el.innerHTML.substring(0, 300))
+                          console.log('Preview full HTML:', el.innerHTML)
+                          console.log('List items in preview:', el.querySelectorAll('li').length)
+                          
+                          // FIX: Convert OL to UL when data-list="bullet" and vice versa
+                          el.querySelectorAll('ol').forEach((ol) => {
+                            const firstLi = ol.querySelector('li')
+                            if (firstLi && firstLi.getAttribute('data-list') === 'bullet') {
+                              console.log('🔧 Converting OL to UL (has bullet data-list)')
+                              const ul = document.createElement('ul')
+                              ul.innerHTML = ol.innerHTML
+                              ol.replaceWith(ul)
+                            }
+                          })
+                          
+                          el.querySelectorAll('ul').forEach((ul) => {
+                            const firstLi = ul.querySelector('li')
+                            if (firstLi && firstLi.getAttribute('data-list') === 'ordered') {
+                              console.log('🔧 Converting UL to OL (has ordered data-list)')
+                              const ol = document.createElement('ol')
+                              ol.innerHTML = ul.innerHTML
+                              ul.replaceWith(ol)
+                            }
+                          })
+                          
+                          el.querySelectorAll('li').forEach((li, i) => {
+                            console.log(`Li ${i}:`, {
+                              'data-list': li.getAttribute('data-list'),
+                              'parent tag': li.parentElement?.tagName,
+                              'computed list-style-type': window.getComputedStyle(li).listStyleType,
+                              'text': li.textContent?.substring(0, 50)
                             })
-                            
-                            el.querySelectorAll('ul').forEach((ul) => {
-                              const firstLi = ul.querySelector('li')
-                              if (firstLi && firstLi.getAttribute('data-list') === 'ordered') {
-                                console.log('🔧 Converting UL to OL (has ordered data-list)')
-                                const ol = document.createElement('ol')
-                                ol.innerHTML = ul.innerHTML
-                                ul.replaceWith(ol)
-                              }
-                            })
-                            
-                            el.querySelectorAll('li').forEach((li, i) => {
-                              console.log(`Li ${i}:`, {
-                                'data-list': li.getAttribute('data-list'),
-                                'parent tag': li.parentElement?.tagName,
-                                'computed list-style-type': window.getComputedStyle(li).listStyleType,
-                                'text': li.textContent?.substring(0, 50)
-                              })
-                            })
-                            console.log('=== END PREVIEW DEBUG ===\n')
-                          }
+                          })
+                          console.log('=== END PREVIEW DEBUG ===\n')
                         }}
                       />
                     ) : (
