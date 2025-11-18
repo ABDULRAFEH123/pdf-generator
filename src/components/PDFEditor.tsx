@@ -61,7 +61,12 @@ useEffect(() => {
   }, [])
 
   useEffect(() => {
-    setContent(value)
+    // Only update content from props on initial load or when externally changed
+    // Don't update if we're actively editing (prevents circular updates)
+    if (value && value !== content && !content) {
+      console.log('📥 Initial content load from parent prop')
+      setContent(value)
+    }
   }, [value])
 
   // Function to split lists when data-list attribute changes
@@ -120,7 +125,15 @@ useEffect(() => {
   }
 
   const handleChange = (html: string) => {
-    console.log('📝 Editor handleChange - Raw HTML:', html)
+    console.log('\n� ========== HANDLE CHANGE START ==========')
+    console.log('📝 Raw HTML received:', html.substring(0, 200) + (html.length > 200 ? '...' : ''))
+
+    // Check for font-related classes and styles in raw HTML
+    const hasFontClass = /class="[^"]*ql-font-[^"]*"/.test(html)
+    const hasFontStyle = /style="[^"]*font-family:[^"]*"/.test(html)
+    console.log('🔍 Raw HTML has font class:', hasFontClass)
+    console.log('🔍 Raw HTML has font-family style:', hasFontStyle)
+
     setContent(html)
 
     // Clean up the HTML but PRESERVE font-related styles and classes
@@ -130,16 +143,30 @@ useEffect(() => {
         const keepClasses = classes.split(' ').filter((c: string) => 
           c.startsWith('ql-align-') || c.startsWith('ql-font-')
         )
+        if (keepClasses.length > 0) {
+          console.log('✅ Keeping classes:', keepClasses.join(' '))
+        }
         return keepClasses.length > 0 ? `class="${keepClasses.join(' ')}"` : ''
       })
       // Keep only font-size, color, background-color, and text-align styles
+      // IMPORTANT: Do NOT keep font-family in inline styles - it conflicts with Quill's font classes
       .replace(/style="([^"]*)"/g, (match, styles) => {
+        const originalStyles = styles
         const keepStyles = styles.split(';')
           .filter((s: string) => s.trim())
           .filter((s: string) => {
             const prop = s.split(':')[0].trim()
-            return ['font-size', 'color', 'background-color', 'text-align'].includes(prop)
+            // Explicitly exclude font-family to allow Quill's font classes to work
+            return ['font-size', 'color', 'background-color', 'text-align'].includes(prop) && prop !== 'font-family'
           })
+
+        if (originalStyles.includes('font-family')) {
+          console.log('❌ STRIPPED font-family from inline styles:', originalStyles)
+        }
+        if (keepStyles.length > 0) {
+          console.log('✅ Keeping styles:', keepStyles.join(';'))
+        }
+
         return keepStyles.length > 0 ? `style="${keepStyles.join(';')}"` : ''
       })
       // Remove empty spans that don't have font classes or styles
@@ -153,7 +180,13 @@ useEffect(() => {
     // Fix: Split lists when data-list attribute changes to restart numbering
     cleanedHtml = splitListsByDataListAttribute(cleanedHtml)
 
-    console.log('✨ Editor handleChange - Cleaned HTML:', cleanedHtml)
+    // Check final cleaned HTML
+    const cleanedHasFontClass = /class="[^"]*ql-font-[^"]*"/.test(cleanedHtml)
+    const cleanedHasFontStyle = /style="[^"]*font-family:[^"]*"/.test(cleanedHtml)
+    console.log('🔍 Cleaned HTML has font class:', cleanedHasFontClass)
+    console.log('🔍 Cleaned HTML has font-family style:', cleanedHasFontStyle)
+    console.log('✨ Final cleaned HTML:', cleanedHtml.substring(0, 200) + (cleanedHtml.length > 200 ? '...' : ''))
+    console.log('🔄 ========== HANDLE CHANGE END ==========\n')
 
     onChange?.(cleanedHtml)
   }
@@ -180,7 +213,7 @@ useEffect(() => {
     'header', 'font', 'size',
     'bold', 'italic', 'underline',
     'align',
-    'list', 'bullet', 'ordered'
+    'list'
   ]
 
   // Register fonts with Quill when component mounts
@@ -220,10 +253,10 @@ useEffect(() => {
       .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="times-new-roman"]::before { content: "Times"; }
       .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="courier-new"]::before { content: "Courier"; }
 
-      /* Editor content font classes */
-      .ql-editor .ql-font-sans-serif { font-family: Helvetica, Arial, sans-serif; }
-      .ql-editor .ql-font-times-new-roman { font-family: "Times New Roman", Times, serif; }
-      .ql-editor .ql-font-courier-new { font-family: "Courier New", Courier, monospace; }
+      /* Editor content font classes - Use !important to override pasted inline styles */
+      .ql-editor .ql-font-sans-serif { font-family: Helvetica, Arial, sans-serif !important; }
+      .ql-editor .ql-font-times-new-roman { font-family: "Times New Roman", Times, serif !important; }
+      .ql-editor .ql-font-courier-new { font-family: "Courier New", Courier, monospace !important; }
 
       /* Font size dropdown items */
       .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="8px"]::before {
