@@ -31,6 +31,7 @@ interface PDFCreationModalProps {
 
 export default function PDFCreationModal({ preset, onClose, userId, initialContent = '', pdfId, isEditMode = false }: PDFCreationModalProps) {
   const [content, setContent] = useState(initialContent)
+  const [pdfName, setPdfName] = useState('')
   const [mounted, setMounted] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -89,7 +90,8 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
       generatePDFMutation.mutate({
         presetId: preset.id,
         content,
-        userId
+        userId,
+        pdfName: pdfName.trim() || `PDF - ${preset.name}`
       }, {
         onSuccess: () => {
           // Close modal after successful generation
@@ -122,6 +124,20 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-y-scroll">
             {/* Left Side - Content Editor */}
             <div className="space-y-4 flex flex-col">
+              {/* PDF Name Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  PDF Name
+                </label>
+                <input
+                  type="text"
+                  value={pdfName}
+                  onChange={(e) => setPdfName(e.target.value)}
+                  placeholder={`PDF - ${preset.name}`}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
               <div className="flex-1 flex flex-col">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   PDF Content

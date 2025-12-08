@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
         id,
         content,
         created_at,
+        pdf_name,
         presets (
           name,
           header_image_url,

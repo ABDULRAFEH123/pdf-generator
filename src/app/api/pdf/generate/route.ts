@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import jsPDF from 'jspdf'
+import '@/assets/font/impact-normal.js'
+import '@/assets/font/SoulDaisy-normal.js'
+import '@/assets/font/MisenatrialRegular-vnn0L-normal.js'
+import '@/assets/font/Danymeka-lxx2D-normal.js'
 import html2canvas from 'html2canvas'
 
 export async function POST(request: NextRequest) {
   try {
-    const { presetId, content, userId } = await request.json()
+    const { presetId, content, userId, pdfName } = await request.json()
 
     if (!presetId || !content || !userId) {
       return NextResponse.json(
@@ -159,7 +163,8 @@ export async function POST(request: NextRequest) {
       .insert([{
         preset_id: presetId,
         content,
-        user_id: userId
+        user_id: userId,
+        pdf_name: pdfName || `PDF Document ${Date.now()}`
       }])
       .select()
       .single()

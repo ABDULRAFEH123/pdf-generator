@@ -37,11 +37,15 @@ useEffect(() => {
   // Dynamically import Quill only in the browser
   import('react-quill-new').then(({ Quill }) => {
     const FontAttributor = Quill.import('attributors/class/font') as any;
-    // Only include fonts supported by jsPDF: Helvetica (sans-serif), Times (serif), Courier (monospace)
+    // Include only working custom fonts
     FontAttributor.whitelist = [
       'sans-serif',      // Maps to Helvetica in PDF
       'times-new-roman', // Maps to Times in PDF
-      'courier-new'      // Maps to Courier in PDF
+      'courier-new',     // Maps to Courier in PDF
+      'impact',          // Maps to Impact in PDF (working)
+      'souldaisy',       // Maps to SoulDaisy in PDF (working)
+      'misena',          // Maps to MisenatrialRegular-vnn0L in PDF (working)
+      'danymeka'         // Maps to Danymeka-lxx2D in PDF
     ];
     Quill.register(FontAttributor, true);
 
@@ -195,7 +199,7 @@ useEffect(() => {
   const modules = {
     toolbar: [
       [
-        { font: ['sans-serif', 'times-new-roman', 'courier-new'] },
+        { font: ['sans-serif', 'times-new-roman', 'courier-new', 'impact', 'souldaisy', 'misena', 'danymeka'] },
         { size: ['8px', '10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '48px'] }
       ],
       ['bold', 'italic', 'underline'],
@@ -234,7 +238,7 @@ useEffect(() => {
     // Add font size styles
     const sizeStyle = document.createElement('style')
     sizeStyle.textContent = `
-      /* Font family dropdown items - Only 3 fonts supported by jsPDF */
+      /* Font family dropdown items - 4 fonts supported by jsPDF */
       .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="sans-serif"]::before { 
         content: "Helvetica (Sans Serif)"; 
         font-family: Helvetica, Arial, sans-serif; 
@@ -247,16 +251,40 @@ useEffect(() => {
         content: "Courier (Monospace)"; 
         font-family: "Courier New", Courier, monospace; 
       }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="impact"]::before { 
+        content: "Impact"; 
+        font-family: Impact, "Arial Black", sans-serif; 
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="souldaisy"]::before { 
+        content: "Soul Daisy"; 
+        font-family: SoulDaisy, cursive, fantasy; 
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="misena"]::before { 
+        content: "Misena"; 
+        font-family: MisenatrialRegular-vnn0L, serif; 
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="danymeka"]::before { 
+        content: "Danymeka"; 
+        font-family: Georgia, serif; 
+      }
 
       /* Show selected font in toolbar label */
       .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="sans-serif"]::before { content: "Helvetica"; }
       .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="times-new-roman"]::before { content: "Times"; }
       .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="courier-new"]::before { content: "Courier"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="impact"]::before { content: "Impact"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="souldaisy"]::before { content: "Soul Daisy"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="misena"]::before { content: "Misena"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="danymeka"]::before { content: "Danymeka"; }
 
       /* Editor content font classes - Use !important to override pasted inline styles */
       .ql-editor .ql-font-sans-serif { font-family: Helvetica, Arial, sans-serif !important; }
       .ql-editor .ql-font-times-new-roman { font-family: "Times New Roman", Times, serif !important; }
       .ql-editor .ql-font-courier-new { font-family: "Courier New", Courier, monospace !important; }
+      .ql-editor .ql-font-impact { font-family: Impact, "Arial Black", sans-serif !important; }
+      .ql-editor .ql-font-souldaisy { font-family: SoulDaisy, cursive, fantasy !important; }
+      .ql-editor .ql-font-misena { font-family: MisenatrialRegular-vnn0L, serif !important; }
+      .ql-editor .ql-font-danymeka { font-family: Georgia, serif !important; }
 
       /* Font size dropdown items */
       .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="8px"]::before {
@@ -322,10 +350,14 @@ useEffect(() => {
       .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before { content: '36px'; }
       .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="48px"]::before { content: '48px'; }
       
-      /* Global font classes for preview and PDF - Only 3 supported fonts */
+      /* Global font classes for preview and PDF - All custom fonts */
       .ql-font-sans-serif { font-family: Helvetica, Arial, sans-serif !important; }
-      .ql-font-times-new-roman { font-family: "Times New Roman", Times, serif !important; }
-      .ql-font-courier-new { font-family: "Courier New", Courier, monospace !important; }
+      .ql-font-times-new-roman { font-family: \"Times New Roman\", Times, serif !important; }
+      .ql-font-courier-new { font-family: \"Courier New\", Courier, monospace !important; }
+      .ql-font-impact { font-family: Impact, \"Arial Black\", sans-serif !important; }
+      .ql-font-souldaisy { font-family: SoulDaisy, cursive, fantasy !important; }
+      .ql-font-misena { font-family: MisenatrialRegular-vnn0L, serif !important; }
+      .ql-font-danymeka { font-family: Georgia, serif !important; }
     `
 
     document.head.appendChild(sizeStyle)

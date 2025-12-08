@@ -5,6 +5,7 @@ interface GeneratePDFRequest {
   presetId: string
   content: string
   userId: string
+  pdfName?: string
 }
 
 interface GeneratePDFResponse {
@@ -18,7 +19,7 @@ export function usePDFGeneration() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ presetId, content, userId }: GeneratePDFRequest): Promise<GeneratePDFResponse> => {
+    mutationFn: async ({ presetId, content, userId, pdfName }: GeneratePDFRequest): Promise<GeneratePDFResponse> => {
       const response = await fetch('/api/pdf/generate', {
         method: 'POST',
         headers: {
@@ -28,6 +29,7 @@ export function usePDFGeneration() {
           presetId,
           content,
           userId,
+          pdfName,
         }),
       })
 

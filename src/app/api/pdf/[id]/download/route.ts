@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import jsPDF from 'jspdf'
+import '@/assets/font/impact-normal.js'
+import '@/assets/font/SoulDaisy-normal.js'
+import '@/assets/font/MisenatrialRegular-vnn0L-normal.js'
+import '@/assets/font/Danymeka-lxx2D-normal.js'
 
 export async function GET(
   request: NextRequest,
@@ -139,7 +143,10 @@ export async function GET(
 
     // Generate PDF buffer
     const pdfBuffer = pdf.output('arraybuffer')
-    const filename = `${preset.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.pdf`
+    
+    // Use pdf_name if available, otherwise fall back to preset name
+    const baseName = pdfDoc.pdf_name || preset.name
+    const filename = `${baseName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.pdf`
 
     return new NextResponse(pdfBuffer, {
       headers: {
@@ -528,10 +535,24 @@ const addFormattedTextWithWrapping = async (
       }
       const fontFamily = part.fontFamily || 'helvetica'
       const fontSize = part.fontSize || 14
-      pdf.setFont(fontFamily, fontStyle)
+      
+      // Try to set the font, fallback to helvetica if it fails
+      try {
+        pdf.setFont(fontFamily, fontStyle)
+      } catch (e) {
+        console.warn(`Font ${fontFamily} failed to load, falling back to helvetica:`, e)
+        pdf.setFont('helvetica', fontStyle)
+      }
       pdf.setFontSize(fontSize)
       
-      const testWidth = pdf.getTextWidth(testText)
+      let testWidth
+      try {
+        testWidth = pdf.getTextWidth(testText)
+      } catch (e) {
+        console.warn(`Error getting text width for font ${fontFamily}, using helvetica:`, e)
+        pdf.setFont('helvetica', fontStyle)
+        testWidth = pdf.getTextWidth(testText)
+      }
       
       if (currentLineWidth + testWidth <= maxWidth) {
         // Word fits on current line
@@ -628,11 +649,26 @@ const renderLine = async (
     
     const fontFamily = (part as any).fontFamily || 'helvetica'
     const fontSize = (part as any).fontSize || 14
-    pdf.setFont(fontFamily, fontStyle)
+    
+    // Try to set the font, fallback to helvetica if it fails
+    try {
+      pdf.setFont(fontFamily, fontStyle)
+    } catch (e) {
+      console.warn(`Font ${fontFamily} failed in renderLine, using helvetica:`, e)
+      pdf.setFont('helvetica', fontStyle)
+    }
     pdf.setFontSize(fontSize)
     console.log(`🔸 DOWNLOAD RENDER PART: "${part.text}" at (${currentX}, ${y}) [Font: ${fontFamily}, Size: ${fontSize}]`)
     pdf.text(part.text, currentX, y)
-    const textWidth = pdf.getTextWidth(part.text + ' ')
+    
+    let textWidth
+    try {
+      textWidth = pdf.getTextWidth(part.text + ' ')
+    } catch (e) {
+      console.warn(`Error getting text width in renderLine, using helvetica:`, e)
+      pdf.setFont('helvetica', fontStyle)
+      textWidth = pdf.getTextWidth(part.text + ' ')
+    }
     console.log(`🔸 DOWNLOAD RENDER PART: Text width: ${textWidth}, moving X: ${currentX} -> ${currentX + textWidth}`)
     currentX += textWidth
   }
@@ -866,11 +902,22 @@ const extractFontFamily = (htmlString: string): string | undefined => {
     const fontClass = classes.find(c => c.startsWith('ql-font-'))
     if (fontClass) {
       const fontName = fontClass.replace('ql-font-', '')
-      // Map font class names to actual font families (jsPDF only supports helvetica, times, courier)
+      // Map font class names to actual font families (jsPDF supports helvetica, times, courier, and custom fonts)
       const fontMap: Record<string, string> = {
         'sans-serif': 'helvetica',
         'times-new-roman': 'times',
-        'courier-new': 'courier'
+        'courier-new': 'courier',
+        'impact': 'impact',
+        'souldaisy': 'SoulDaisy',
+        'misena': 'MisenatrialRegular-vnn0L',
+        'danymeka': 'Danymeka-lxx2D',
+        // Problematic fonts removed - will fallback to helvetica
+        'bonsad': 'helvetica',
+        'heinrich': 'helvetica',
+        'khalliban': 'helvetica',
+        'rogbold': 'helvetica',
+        'redhawk': 'helvetica',
+        'gymkhana': 'helvetica'
       }
       return fontMap[fontName] || 'helvetica'
     }

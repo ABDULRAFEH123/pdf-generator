@@ -12,6 +12,7 @@ interface PDFCardProps {
     id: string
     content: string
     created_at: string
+    pdf_name?: string
     presets: {
       name: string
       header_image_url: string
@@ -56,7 +57,8 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `${pdf.presets.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${new Date(pdf.created_at).getTime()}.pdf`
+      const displayName = pdf.pdf_name || pdf.presets.name
+      link.download = `${displayName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${new Date(pdf.created_at).getTime()}.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -152,7 +154,7 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
               <h3 className="text-xl font-bold mb-2 group-hover:text-blue-100 transition-colors">
-                {pdf.presets.name}
+                {pdf.pdf_name || pdf.presets.name}
               </h3>
               <div className="flex items-center space-x-3 text-blue-100">
                 <div className="flex items-center space-x-1">
