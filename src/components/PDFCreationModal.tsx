@@ -25,13 +25,14 @@ interface PDFCreationModalProps {
   onClose: () => void
   userId?: string
   initialContent?: string
+  initialPdfName?: string
   pdfId?: string
   isEditMode?: boolean
 }
 
-export default function PDFCreationModal({ preset, onClose, userId, initialContent = '', pdfId, isEditMode = false }: PDFCreationModalProps) {
+export default function PDFCreationModal({ preset, onClose, userId, initialContent = '', initialPdfName = '', pdfId, isEditMode = false }: PDFCreationModalProps) {
   const [content, setContent] = useState(initialContent)
-  const [pdfName, setPdfName] = useState('')
+  const [pdfName, setPdfName] = useState(initialPdfName)
   const [mounted, setMounted] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -46,6 +47,12 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
       setContent(initialContent)
     }
   }, [initialContent])
+
+  useEffect(() => {
+    if (initialPdfName) {
+      setPdfName(initialPdfName)
+    }
+  }, [initialPdfName])
 
 
   const handleGeneratePDF = async () => {
@@ -63,7 +70,10 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ content }),
+          body: JSON.stringify({ 
+            content,
+            pdfName: pdfName.trim() || undefined 
+          }),
         })
 
         if (!response.ok) {
@@ -333,6 +343,13 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
         <PDFPreviewModal
           content={content}
           presetName={preset.name}
+          preset={{
+            header_image_url: preset.header_image_url,
+            footer_image_url: preset.footer_image_url,
+            header_height: preset.header_height,
+            footer_height: preset.footer_height,
+            pdf_sizes: preset.pdf_sizes
+          }}
           onClose={() => setShowPreview(false)}
         />
       )}

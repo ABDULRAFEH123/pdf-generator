@@ -37,22 +37,29 @@ useEffect(() => {
   // Dynamically import Quill only in the browser
   import('react-quill-new').then(({ Quill }) => {
     const FontAttributor = Quill.import('attributors/class/font') as any;
-    // Include only working custom fonts
+    // Only working fonts - jsPDF built-in + custom TTF fonts
     FontAttributor.whitelist = [
       'sans-serif',      // Maps to Helvetica in PDF
       'times-new-roman', // Maps to Times in PDF
       'courier-new',     // Maps to Courier in PDF
-      'impact',          // Maps to Impact in PDF (working)
-      'souldaisy',       // Maps to SoulDaisy in PDF (working)
-      'misena',          // Maps to MisenatrialRegular-vnn0L in PDF (working)
-      'danymeka'         // Maps to Danymeka-lxx2D in PDF
+      'impact',          // Maps to Impact in PDF (custom TTF)
+      'robotoserif',     // Maps to RobotoSerif-Medium in PDF (custom TTF)
+      'verdana',         // Maps to Verdana in PDF (custom TTF)
+      'opensans',        // Maps to OpenSans-Regular in PDF (custom TTF)
+      'lato',            // Maps to Lato-Medium in PDF (custom TTF)
+      'robotomono',      // Maps to RobotoMono-Regular in PDF (custom TTF)
+      'georgia',         // Maps to georgia in PDF (custom TTF)
+      'cambria',         // Maps to Cambria in PDF (custom TTF)
+      'garamond',        // Maps to Garamond-Regular in PDF (custom TTF)
+      'arial',           // Maps to Arial-Regular in PDF (custom TTF)
+      'calibri'          // Maps to Calibri in PDF (custom TTF)
     ];
     Quill.register(FontAttributor, true);
 
     const SizeAttributor = Quill.import('attributors/style/size') as any;
-    // Optimized font sizes for PDF rendering
+    // All font sizes from 1px to 99px
     SizeAttributor.whitelist = [
-      '8px','10px','12px','14px','16px','18px','20px','24px','28px','32px','36px','48px'
+      '1px','2px','3px','4px','5px','6px','7px','8px','9px','10px','11px','12px','13px','14px','15px','16px','17px','18px','19px','20px','21px','22px','23px','24px','25px','26px','27px','28px','29px','30px','31px','32px','33px','34px','35px','36px','37px','38px','39px','40px','41px','42px','43px','44px','45px','46px','47px','48px','49px','50px','51px','52px','53px','54px','55px','56px','57px','58px','59px','60px','61px','62px','63px','64px','65px','66px','67px','68px','69px','70px','71px','72px','73px','74px','75px','76px','77px','78px','79px','80px','81px','82px','83px','84px','85px','86px','87px','88px','89px','90px','91px','92px','93px','94px','95px','96px','97px','98px','99px'
     ];
     Quill.register(SizeAttributor, true);
   });
@@ -199,8 +206,8 @@ useEffect(() => {
   const modules = {
     toolbar: [
       [
-        { font: ['sans-serif', 'times-new-roman', 'courier-new', 'impact', 'souldaisy', 'misena', 'danymeka'] },
-        { size: ['8px', '10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '48px'] }
+        { 'font': ['sans-serif', 'times-new-roman', 'courier-new', 'impact', 'robotoserif', 'verdana', 'opensans', 'lato', 'robotomono', 'georgia', 'cambria', 'garamond', 'arial', 'calibri'] },
+        { size: ['1px','2px','3px','4px','5px','6px','7px','8px','9px','10px','11px','12px','13px','14px','15px','16px','17px','18px','19px','20px','21px','22px','23px','24px','25px','26px','27px','28px','29px','30px','31px','32px','33px','34px','35px','36px','37px','38px','39px','40px','41px','42px','43px','44px','45px','46px','47px','48px','49px','50px','51px','52px','53px','54px','55px','56px','57px','58px','59px','60px','61px','62px','63px','64px','65px','66px','67px','68px','69px','70px','71px','72px','73px','74px','75px','76px','77px','78px','79px','80px','81px','82px','83px','84px','85px','86px','87px','88px','89px','90px','91px','92px','93px','94px','95px','96px','97px','98px','99px'] }
       ],
       ['bold', 'italic', 'underline'],
       [{ header: [1, 2, 3, false] }],
@@ -248,24 +255,52 @@ useEffect(() => {
         font-family: "Times New Roman", Times, serif; 
       }
       .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="courier-new"]::before { 
-        content: "Courier (Monospace)"; 
+        content: "Courier New"; 
         font-family: "Courier New", Courier, monospace; 
       }
       .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="impact"]::before { 
         content: "Impact"; 
         font-family: Impact, "Arial Black", sans-serif; 
       }
-      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="souldaisy"]::before { 
-        content: "Soul Daisy"; 
-        font-family: SoulDaisy, cursive, fantasy; 
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="robotoserif"]::before { 
+        content: "Roboto Serif"; 
+        font-family: "Roboto Serif", Georgia, serif; 
       }
-      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="misena"]::before { 
-        content: "Misena"; 
-        font-family: MisenatrialRegular-vnn0L, serif; 
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="verdana"]::before { 
+        content: "Verdana"; 
+        font-family: Verdana, Geneva, sans-serif; 
       }
-      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="danymeka"]::before { 
-        content: "Danymeka"; 
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="opensans"]::before { 
+        content: "Open Sans"; 
+        font-family: "Open Sans", Arial, sans-serif; 
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="lato"]::before { 
+        content: "Lato"; 
+        font-family: Lato, "Helvetica Neue", sans-serif; 
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="robotomono"]::before { 
+        content: "Roboto Mono (Code)"; 
+        font-family: "Roboto Mono", "Courier New", monospace; 
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="georgia"]::before { 
+        content: "Georgia"; 
         font-family: Georgia, serif; 
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="cambria"]::before { 
+        content: "Cambria"; 
+        font-family: Cambria, Georgia, serif; 
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="garamond"]::before { 
+        content: "Garamond"; 
+        font-family: Garamond, "Times New Roman", serif; 
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="arial"]::before { 
+        content: "Arial"; 
+        font-family: Arial, Helvetica, sans-serif; 
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="calibri"]::before { 
+        content: "Calibri"; 
+        font-family: Calibri, "Segoe UI", sans-serif; 
       }
 
       /* Show selected font in toolbar label */
@@ -273,91 +308,59 @@ useEffect(() => {
       .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="times-new-roman"]::before { content: "Times"; }
       .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="courier-new"]::before { content: "Courier"; }
       .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="impact"]::before { content: "Impact"; }
-      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="souldaisy"]::before { content: "Soul Daisy"; }
-      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="misena"]::before { content: "Misena"; }
-      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="danymeka"]::before { content: "Danymeka"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="robotoserif"]::before { content: "Roboto Serif"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="verdana"]::before { content: "Verdana"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="opensans"]::before { content: "Open Sans"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="lato"]::before { content: "Lato"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="robotomono"]::before { content: "Roboto Mono"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="georgia"]::before { content: "Georgia"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="cambria"]::before { content: "Cambria"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="garamond"]::before { content: "Garamond"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="arial"]::before { content: "Arial"; }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="calibri"]::before { content: "Calibri"; }
 
       /* Editor content font classes - Use !important to override pasted inline styles */
       .ql-editor .ql-font-sans-serif { font-family: Helvetica, Arial, sans-serif !important; }
       .ql-editor .ql-font-times-new-roman { font-family: "Times New Roman", Times, serif !important; }
       .ql-editor .ql-font-courier-new { font-family: "Courier New", Courier, monospace !important; }
       .ql-editor .ql-font-impact { font-family: Impact, "Arial Black", sans-serif !important; }
-      .ql-editor .ql-font-souldaisy { font-family: SoulDaisy, cursive, fantasy !important; }
-      .ql-editor .ql-font-misena { font-family: MisenatrialRegular-vnn0L, serif !important; }
-      .ql-editor .ql-font-danymeka { font-family: Georgia, serif !important; }
+      .ql-editor .ql-font-robotoserif { font-family: "Roboto Serif", Georgia, serif !important; }
+      .ql-editor .ql-font-verdana { font-family: Verdana, Geneva, sans-serif !important; }
+      .ql-editor .ql-font-opensans { font-family: "Open Sans", Arial, sans-serif !important; }
+      .ql-editor .ql-font-lato { font-family: Lato, "Helvetica Neue", sans-serif !important; }
+      .ql-editor .ql-font-robotomono { font-family: "Roboto Mono", "Courier New", monospace !important; }
+      .ql-editor .ql-font-georgia { font-family: Georgia, serif !important; }
+      .ql-editor .ql-font-cambria { font-family: Cambria, Georgia, serif !important; }
+      .ql-editor .ql-font-garamond { font-family: Garamond, "Times New Roman", serif !important; }
+      .ql-editor .ql-font-arial { font-family: Arial, Helvetica, sans-serif !important; }
+      .ql-editor .ql-font-calibri { font-family: Calibri, "Segoe UI", sans-serif !important; }
 
-      /* Font size dropdown items */
-      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="8px"]::before {
-        content: '8px';
-        font-size: 8px !important;
-      }
-      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10px"]::before {
-        content: '10px';
-        font-size: 10px !important;
-      }
-      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before {
-        content: '12px';
-        font-size: 12px !important;
-      }
-      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before {
-        content: '14px';
-        font-size: 14px !important;
-      }
-      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="16px"]::before {
-        content: '16px';
-        font-size: 16px !important;
-      }
-      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before {
-        content: '18px';
-        font-size: 18px !important;
-      }
-      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before {
-        content: '20px';
-        font-size: 20px !important;
-      }
-      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before {
-        content: '24px';
-        font-size: 24px !important;
-      }
-      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="28px"]::before {
-        content: '28px';
-        font-size: 28px !important;
-      }
-      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="32px"]::before {
-        content: '32px';
-        font-size: 32px !important;
-      }
-      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before {
-        content: '36px';
-        font-size: 36px !important;
-      }
-      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="48px"]::before {
-        content: '48px';
-        font-size: 48px !important;
+      /* Dropdown scroll styling for font and size pickers */
+      .ql-snow .ql-picker.ql-font .ql-picker-options,
+      .ql-snow .ql-picker.ql-size .ql-picker-options {
+        max-height: 200px !important;
+        overflow-y: auto !important;
       }
 
-      /* Show selected size in toolbar label */
-      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="8px"]::before { content: '8px'; }
-      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="10px"]::before { content: '10px'; }
-      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before { content: '12px'; }
-      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before { content: '14px'; }
-      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="16px"]::before { content: '16px'; }
-      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before { content: '18px'; }
-      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before { content: '20px'; }
-      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before { content: '24px'; }
-      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="28px"]::before { content: '28px'; }
-      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="32px"]::before { content: '32px'; }
-      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before { content: '36px'; }
-      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="48px"]::before { content: '48px'; }
+      /* Font size dropdown items - dynamically show size value */
+      .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: attr(data-value); }
+      .ql-snow .ql-picker.ql-size .ql-picker-label::before { content: attr(data-value); }
       
-      /* Global font classes for preview and PDF - All custom fonts */
+      /* Global font classes for preview and PDF */
       .ql-font-sans-serif { font-family: Helvetica, Arial, sans-serif !important; }
       .ql-font-times-new-roman { font-family: \"Times New Roman\", Times, serif !important; }
       .ql-font-courier-new { font-family: \"Courier New\", Courier, monospace !important; }
       .ql-font-impact { font-family: Impact, \"Arial Black\", sans-serif !important; }
-      .ql-font-souldaisy { font-family: SoulDaisy, cursive, fantasy !important; }
-      .ql-font-misena { font-family: MisenatrialRegular-vnn0L, serif !important; }
-      .ql-font-danymeka { font-family: Georgia, serif !important; }
+      .ql-font-robotoserif { font-family: \"Roboto Serif\", Georgia, serif !important; }
+      .ql-font-verdana { font-family: Verdana, Geneva, sans-serif !important; }
+      .ql-font-opensans { font-family: \"Open Sans\", Arial, sans-serif !important; }
+      .ql-font-lato { font-family: Lato, "Helvetica Neue", sans-serif !important; }
+      .ql-font-robotomono { font-family: "Roboto Mono", "Courier New", monospace !important; }
+      .ql-font-georgia { font-family: Georgia, serif !important; }
+      .ql-font-cambria { font-family: Cambria, Georgia, serif !important; }
+      .ql-font-garamond { font-family: Garamond, "Times New Roman", serif !important; }
+      .ql-font-arial { font-family: Arial, Helvetica, sans-serif !important; }
+      .ql-font-calibri { font-family: Calibri, "Segoe UI", sans-serif !important; }
     `
 
     document.head.appendChild(sizeStyle)

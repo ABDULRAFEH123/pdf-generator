@@ -322,6 +322,7 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
           onClose={() => setShowEditModal(false)}
           userId={undefined}
           initialContent={pdf.content}
+          initialPdfName={pdf.pdf_name || ''}
           pdfId={pdf.id}
           isEditMode={true}
         />,
@@ -332,7 +333,14 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
       {showPreviewModal && typeof document !== 'undefined' && createPortal(
         <PDFPreviewModal
           content={pdf.content}
-          presetName={pdf.presets.name}
+          presetName={pdf.pdf_name || pdf.presets.name}
+          preset={{
+            header_image_url: pdf.presets.header_image_url,
+            footer_image_url: pdf.presets.footer_image_url,
+            header_height: pdf.presets.header_height,
+            footer_height: pdf.presets.footer_height,
+            pdf_sizes: pdf.presets.pdf_sizes
+          }}
           onClose={() => setShowPreviewModal(false)}
         />,
         document.body

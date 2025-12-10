@@ -16,19 +16,30 @@ export async function PATCH(
       )
     }
 
-    const { content } = body
+    const { content, pdfName } = body
 
-    if (!content) {
+    // Build update object dynamically
+    const updateData: { content?: string; pdf_name?: string } = {}
+    
+    if (content !== undefined) {
+      updateData.content = content
+    }
+    
+    if (pdfName !== undefined) {
+      updateData.pdf_name = pdfName
+    }
+
+    if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { error: 'Content is required' },
+        { error: 'No fields to update' },
         { status: 400 }
       )
     }
 
-    // Update the PDF document content
+    // Update the PDF document
     const { data, error } = await supabaseAdmin
       .from('pdf_documents')
-      .update({ content })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single()

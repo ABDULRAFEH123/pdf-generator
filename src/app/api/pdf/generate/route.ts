@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import jsPDF from 'jspdf'
 import '@/assets/font/impact-normal.js'
-import '@/assets/font/SoulDaisy-normal.js'
-import '@/assets/font/MisenatrialRegular-vnn0L-normal.js'
-import '@/assets/font/Danymeka-lxx2D-normal.js'
+import '@/assets/font/RobotoSerif-Medium-normal.js'
+import '@/assets/font/Verdana-normal.js'
+import '@/assets/font/OpenSans-Regular-normal.js'
+import '@/assets/font/Lato-Medium-normal.js'
+import '@/assets/font/RobotoMono-Regular-normal.js'
+import '@/assets/font/georgia-normal.js'
+import '@/assets/font/Cambria-normal.js'
+import '@/assets/font/Garamond Regular-normal.js'
+import '@/assets/font/Arial Regular-normal.js'
+import '@/assets/font/Calibri-normal.js'
 import html2canvas from 'html2canvas'
 
 export async function POST(request: NextRequest) {
@@ -95,27 +102,7 @@ export async function POST(request: NextRequest) {
     const textWidth = pageWidth - (margin * 2)
     const textHeight = contentHeight - (margin * 2)
     
-    console.log('\n=== DETAILED SPACING DEBUG ===')
-    console.log('- Page dimensions (mm):', { pageWidth, pageHeight })
-    console.log('- Header/Footer heights (mm):', { headerHeight, footerHeight })
-    console.log('- Content area:', { x: margin, y: headerHeight + margin, width: textWidth, height: textHeight })
-    console.log('- Content length:', content.length, 'characters')
-    console.log('- Raw content preview:', content.substring(0, 200) + '...')
-    
-    console.log('\n=== FULL CONTENT DEBUG ===')
-    console.log('Raw HTML content:')
-    console.log(content)
-    console.log('\n=== CONTENT ANALYSIS ===')
-    console.log('Contains <p> tags:', content.includes('<p>'))
-    console.log('Contains <br> tags:', content.includes('<br>'))
-    console.log('Contains <h1> tags:', content.includes('<h1>'))
-    console.log('Contains <h2> tags:', content.includes('<h2>'))
-    console.log('Contains <h3> tags:', content.includes('<h3>'))
-    console.log('Contains <ul> tags:', content.includes('<ul>'))
-    console.log('Contains <ol> tags:', content.includes('<ol>'))
-    console.log('Contains <li> tags:', content.includes('<li>'))
-    console.log('Contains <strong> tags:', content.includes('<strong>'))
-    console.log('Contains <em> tags:', content.includes('<em>'))
+  
     
     // Count different elements
     const pMatches = content.match(/<p[^>]*>/gi) || []
@@ -126,17 +113,7 @@ export async function POST(request: NextRequest) {
     const ulMatches = content.match(/<ul[^>]*>/gi) || []
     const olMatches = content.match(/<ol[^>]*>/gi) || []
     const liMatches = content.match(/<li[^>]*>/gi) || []
-    
-    console.log('\n=== ELEMENT COUNTS ===')
-    console.log('Paragraphs (<p>):', pMatches.length)
-    console.log('Line breaks (<br>):', brMatches.length)
-    console.log('H1 headings:', h1Matches.length)
-    console.log('H2 headings:', h2Matches.length)
-    console.log('H3 headings:', h3Matches.length)
-    console.log('Unordered lists (<ul>):', ulMatches.length)
-    console.log('Ordered lists (<ol>):', olMatches.length)
-    console.log('List items (<li>):', liMatches.length)
-    
+
     await addHTMLContentToPDF(pdf, content, {
       x: margin,
       y: headerHeight + margin,
@@ -215,38 +192,24 @@ const addHTMLContentToPDF = async (
   }
 ) => {
   const { x, y, width, maxHeight, pageHeight, footerHeight, margin } = options
-  
-  console.log('\n=== TEXT RENDERING DEBUG ===')
-  console.log('Rendering options:', options)
-  
+
   // Parse HTML content and convert to formatted text
   const parsedContent = parseHTMLContent(htmlContent)
-  
-  console.log('Starting to render', parsedContent.length, 'elements')
-  
+ 
   let currentY = y
   let currentPage = 1
   let renderedElements = 0
   let lastElementType = ''
   
   for (const element of parsedContent) {
-    console.log(`\n--- Processing Element ${renderedElements} ---`)
-    console.log('Element type:', element.type)
-    console.log('Element text preview:', element.text.substring(0, 100) + (element.text.length > 100 ? '...' : ''))
-    console.log('Element text length:', element.text.length)
-    console.log('Current Y position:', currentY)
-    console.log('Current page:', currentPage)
-    
+ 
     // Minimal spacing between different content types
     if (lastElementType && lastElementType !== element.type && element.type !== 'spacing') {
-      console.log(`🟡 ELEMENT TRANSITION: ${lastElementType} -> ${element.type}`)
       // Only add minimal spacing for major content type changes
       if (lastElementType === 'h1' || lastElementType === 'h2' || lastElementType === 'h3') {
         currentY += 2 // Minimal spacing after headings
-        console.log(`🟡 SPACING: Added 2mm after ${lastElementType}, Y: ${currentY - 2} -> ${currentY}`)
       } else if (element.type === 'h1' || element.type === 'h2' || element.type === 'h3') {
         currentY += 1 // Minimal spacing before headings
-        console.log(`🟡 SPACING: Added 1mm before ${element.type}, Y: ${currentY - 1} -> ${currentY}`)
       } else {
         console.log(`🟡 SPACING: No spacing added for ${lastElementType} -> ${element.type}`)
       }
@@ -261,24 +224,19 @@ const addHTMLContentToPDF = async (
     
     // Check if we need a new page
     if (currentY + element.height > pageHeight - footerHeight - margin) {
-      console.log('Adding new page - Y position would exceed page bounds')
       pdf.addPage()
       currentY = margin
       currentPage++
-      console.log('New page created, current page:', currentPage, 'Y reset to:', currentY)
     }
     
     // Handle headings with proper font sizes and wrapping
     if (element.type === 'h1' || element.type === 'h2' || element.type === 'h3') {
-      console.log(`Rendering ${element.type} heading:`, element.text)
       pdf.setFont('helvetica', 'bold')
       const fontSize = element.type === 'h1' ? 24 : element.type === 'h2' ? 20 : 16
       pdf.setFontSize(fontSize)
-      console.log('Font size set to:', fontSize)
       
       // Wrap heading text if needed
       const wrappedLines = splitTextToLines(pdf, element.text, width)
-      console.log(`Heading wrapped into ${wrappedLines.length} lines:`, wrappedLines)
       
       for (let i = 0; i < wrappedLines.length; i++) {
         const line = wrappedLines[i]
@@ -291,18 +249,14 @@ const addHTMLContentToPDF = async (
           textX = x + width - pdf.getTextWidth(line)
         }
         
-        console.log(`🔵 HEADING LINE: Rendering "${line}" at (${textX}, ${currentY})`)
         pdf.text(line, textX, currentY)
-        console.log(`🔵 HEADING LINE: After pdf.text(), Y position: ${currentY}`)
         
         // Add line spacing except for last line
         if (i < wrappedLines.length - 1) {
           currentY += (fontSize * 0.0) // Reduced proportional line height
-          console.log(`Added line spacing, new Y: ${currentY}`)
           
           // Check if we need a new page
           if (currentY + (fontSize * 0.0) > pageHeight - footerHeight - margin) {
-            console.log('Need new page for next heading line')
             pdf.addPage()
             currentY = margin
           }
@@ -310,32 +264,25 @@ const addHTMLContentToPDF = async (
       }
       
       // No extra spacing after headings - spacing is handled by the main loop
-      console.log(`Heading ${element.type} rendered, new Y: ${currentY}`)
       renderedElements++
       continue
     }
     
     // Handle list items
     if (element.type === 'list-item') {
-      console.log('Rendering list item:', element.text)
       pdf.setFont('helvetica', 'normal')
       pdf.setFontSize(14)
       
       const wrappedLines = splitTextToLines(pdf, element.text, width)
-      console.log(`List item wrapped into ${wrappedLines.length} lines:`, wrappedLines)
       
       for (let i = 0; i < wrappedLines.length; i++) {
         const line = wrappedLines[i]
-        console.log(`🟣 LIST LINE: Rendering "${line}" at (${x}, ${currentY})`)
         pdf.text(line, x, currentY)
-        console.log(`🟣 LIST LINE: After pdf.text(), Y position: ${currentY}`)
         
         if (i < wrappedLines.length - 1) {
           currentY += 0 // 0mm line height (tighter spacing)
-          console.log(`Added line spacing, new Y: ${currentY}`)
           
           if (currentY + 6 > pageHeight - footerHeight - margin) {
-            console.log('Need new page for next list line')
             pdf.addPage()
             currentY = margin
           }
@@ -343,32 +290,26 @@ const addHTMLContentToPDF = async (
       }
       
       // No extra spacing after list items - spacing is handled by the main loop
-      console.log(`List item rendered, new Y: ${currentY}`)
       renderedElements++
       continue
     }
     
     // Handle regular text with proper wrapping
     if (element.text) {
-      console.log('Rendering regular text, has formatted parts:', !!element.formattedParts)
       
       // Use formatted parts if available, otherwise use simple text
       if (element.formattedParts && element.formattedParts.length > 0) {
-        console.log('Using formatted parts, count:', element.formattedParts.length)
         
         // Handle formatted text with wrapping and get the new Y position
         const newY = await addFormattedTextWithWrapping(pdf, element.formattedParts, x, currentY, width, element.align)
         currentY = newY
-        console.log(`Formatted text rendered, new Y: ${currentY}`)
       } else {
-        console.log('Using simple text fallback')
         
         // Fallback for simple text with wrapping
         pdf.setFont('helvetica', 'normal')
         pdf.setFontSize(14)
         
         const wrappedLines = splitTextToLines(pdf, element.text, width)
-        console.log(`Simple text wrapped into ${wrappedLines.length} lines:`, wrappedLines)
         
         for (let i = 0; i < wrappedLines.length; i++) {
           const line = wrappedLines[i]
@@ -381,18 +322,14 @@ const addHTMLContentToPDF = async (
             textX = x + width - pdf.getTextWidth(line)
           }
           
-          console.log(`🟠 SIMPLE LINE: Rendering "${line}" at (${textX}, ${currentY})`)
           pdf.text(line, textX, currentY)
-          console.log(`🟠 SIMPLE LINE: After pdf.text(), Y position: ${currentY}`)
           
           // Add line spacing except for last line
           if (i < wrappedLines.length - 1) {
             currentY += 0 // 0mm line height (tighter spacing)
-            console.log(`Added line spacing, new Y: ${currentY}`)
             
             // Check if we need a new page
             if (currentY + 6 > pageHeight - footerHeight - margin) {
-              console.log('Need new page for next text line')
               pdf.addPage()
               currentY = margin
             }
@@ -407,12 +344,7 @@ const addHTMLContentToPDF = async (
     lastElementType = element.type
     renderedElements++
   }
-  
-  console.log('\n=== RENDERING COMPLETE ===')
-  console.log('Total elements processed:', renderedElements)
-  console.log('Final Y position:', currentY)
-  console.log('Total pages created:', currentPage)
-}
+  }
 
 // Helper function to split text into lines that fit within the given width
 const splitTextToLines = (pdf: jsPDF, text: string, maxWidth: number): string[] => {
@@ -454,32 +386,44 @@ const calculateLinesUsed = (pdf: jsPDF, text: string, maxWidth: number, fontSize
 // Helper function to add formatted text with proper wrapping
 const addFormattedTextWithWrapping = async (
   pdf: jsPDF, 
-  formattedParts: Array<{ text: string; isBold: boolean; isItalic: boolean }>, 
+  formattedParts: Array<{ text: string; isBold: boolean; isItalic: boolean; fontSize?: number; fontFamily?: string }>, 
   x: number, 
   startY: number, 
   maxWidth: number, 
   align?: string
 ): Promise<number> => {
-  console.log('\n=== FORMATTED TEXT WRAPPING DEBUG ===')
-  console.log('Start Y position:', startY)
-  console.log('Max width:', maxWidth)
-  console.log('Formatted parts count:', formattedParts.length)
-  formattedParts.forEach((part, i) => {
-    console.log(`  Part ${i}: "${part.text}" (bold: ${part.isBold}, italic: ${part.isItalic})`)
-  })
-  
   let currentY = startY
   let currentX = x
   let currentLine = ''
   let currentLineWidth = 0
-  const lineHeight = 0 // 0mm line height (tighter spacing like preview)
-  const parts: Array<{ text: string; x: number; isBold: boolean; isItalic: boolean }> = []
+  let currentLineMaxFontSize = 14 // Track the largest font size on current line
+  const parts: Array<{ text: string; x: number; isBold: boolean; isItalic: boolean; fontSize?: number; fontFamily?: string }> = []
   
-  console.log('Initial line height set to:', lineHeight, 'mm')
+  // Helper to safely set font
+  const safeSetFont = (fontFamily: string, fontStyle: string) => {
+    try {
+      const isCustomFont = !['helvetica', 'times', 'courier'].includes(fontFamily.toLowerCase())
+      const actualStyle = isCustomFont ? 'normal' : fontStyle
+      pdf.setFont(fontFamily, actualStyle)
+      return true
+    } catch (e) {
+      pdf.setFont('helvetica', fontStyle)
+      return false
+    }
+  }
+  
+  // Helper to calculate line height based on font size (points to mm conversion)
+  // Font size in points, line height ~1.2x the font size in mm
+  const calculateLineHeight = (fontSize: number): number => {
+    // 1 point = 0.3528 mm, typical line height is 1.2-1.4x font size
+    return (fontSize * 0.3528 * 1.3)
+  }
 
   // Build the full text with formatting info
   for (const part of formattedParts) {
     const words = part.text.split(' ')
+    const fontFamily = part.fontFamily || 'helvetica'
+    const fontSize = part.fontSize || 14
     
     for (let i = 0; i < words.length; i++) {
       const word = words[i]
@@ -495,8 +439,9 @@ const addFormattedTextWithWrapping = async (
       } else if (part.isItalic) {
         fontStyle = 'italic'
       }
-      pdf.setFont('helvetica', fontStyle)
-      pdf.setFontSize(14)
+      
+      safeSetFont(fontFamily, fontStyle)
+      pdf.setFontSize(fontSize)
       
       const testWidth = pdf.getTextWidth(testText)
       
@@ -504,29 +449,36 @@ const addFormattedTextWithWrapping = async (
         // Word fits on current line
         currentLine += testText
         currentLineWidth += testWidth
+        // Track the largest font size on this line
+        if (fontSize > currentLineMaxFontSize) {
+          currentLineMaxFontSize = fontSize
+        }
       } else {
         // Word doesn't fit, start new line
         if (currentLine) {
           // Render current line
-          console.log(`🔴 LINE BREAK: Rendering line "${currentLine}" at Y: ${currentY}`)
           await renderLine(pdf, parts, x, currentY, maxWidth, align)
+          // Calculate line height based on the largest font size on this line
+          const lineHeight = calculateLineHeight(currentLineMaxFontSize)
+          console.log(`📏 Line height for font size ${currentLineMaxFontSize}pt: ${lineHeight.toFixed(2)}mm`)
           parts.length = 0
-          console.log(`🔴 LINE BREAK: Adding lineHeight ${lineHeight}mm to Y position`)
           currentY += lineHeight
-          console.log(`🔴 LINE BREAK: New Y position: ${currentY}`)
+          currentLineMaxFontSize = fontSize // Reset to current font size for new line
         }
         
         currentLine = word
         currentLineWidth = pdf.getTextWidth(word)
       }
       
-      // Add this word to parts for rendering
+      // Add this word to parts for rendering - INCLUDING fontFamily and fontSize
       if (testText.trim()) {
         parts.push({
           text: testText.trim(),
           x: currentX,
           isBold: part.isBold,
-          isItalic: part.isItalic
+          isItalic: part.isItalic,
+          fontSize: fontSize,
+          fontFamily: fontFamily
         })
       }
     }
@@ -536,6 +488,9 @@ const addFormattedTextWithWrapping = async (
   if (currentLine && parts.length > 0) {
     console.log(`🟢 FINAL LINE: Rendering final line "${currentLine}" at Y: ${currentY}`)
     await renderLine(pdf, parts, x, currentY, maxWidth, align)
+    // Add final line height for accurate return value
+    const finalLineHeight = calculateLineHeight(currentLineMaxFontSize)
+    currentY += finalLineHeight
   }
 
   console.log(`🟢 FORMATTED TEXT COMPLETE: Final Y position: ${currentY}`)
@@ -545,13 +500,28 @@ const addFormattedTextWithWrapping = async (
 // Helper function to render a line with mixed formatting
 const renderLine = async (
   pdf: jsPDF,
-  parts: Array<{ text: string; x: number; isBold: boolean; isItalic: boolean }>,
+  parts: Array<{ text: string; x: number; isBold: boolean; isItalic: boolean; fontSize?: number; fontFamily?: string }>,
   x: number,
   y: number,
   maxWidth: number,
   align?: string
 ) => {
   if (parts.length === 0) return
+
+  // Helper to safely set font with fallback
+  const safeSetFont = (fontFamily: string, fontStyle: string) => {
+    try {
+      // Custom fonts typically only support 'normal' style
+      const isCustomFont = !['helvetica', 'times', 'courier'].includes(fontFamily.toLowerCase())
+      const actualStyle = isCustomFont ? 'normal' : fontStyle
+      pdf.setFont(fontFamily, actualStyle)
+      return fontFamily
+    } catch (e) {
+      console.warn(`Font ${fontFamily} not available, falling back to helvetica`)
+      pdf.setFont('helvetica', fontStyle)
+      return 'helvetica'
+    }
+  }
 
   // Calculate total line width for alignment
   let totalWidth = 0
@@ -564,9 +534,16 @@ const renderLine = async (
     } else if (part.isItalic) {
       fontStyle = 'italic'
     }
-    pdf.setFont('helvetica', fontStyle)
-    pdf.setFontSize(14)
-    totalWidth += pdf.getTextWidth(part.text + ' ')
+    const fontFamily = part.fontFamily || 'helvetica'
+    const fontSize = part.fontSize || 14
+    safeSetFont(fontFamily, fontStyle)
+    pdf.setFontSize(fontSize)
+    try {
+      totalWidth += pdf.getTextWidth(part.text + ' ')
+    } catch (e) {
+      pdf.setFont('helvetica', fontStyle)
+      totalWidth += pdf.getTextWidth(part.text + ' ')
+    }
   }
 
   // Calculate starting X position based on alignment
@@ -589,12 +566,22 @@ const renderLine = async (
       fontStyle = 'italic'
     }
     
-    pdf.setFont('helvetica', fontStyle)
-    pdf.setFontSize(14)
-    console.log(`🔸 RENDER PART: "${part.text}" at (${currentX}, ${y})`)
+    const fontFamily = part.fontFamily || 'helvetica'
+    const fontSize = part.fontSize || 14
+    
+    // Use safe font setting
+    const actualFont = safeSetFont(fontFamily, fontStyle)
+    pdf.setFontSize(fontSize)
     pdf.text(part.text, currentX, y)
-    const textWidth = pdf.getTextWidth(part.text + ' ')
-    console.log(`🔸 RENDER PART: Text width: ${textWidth}, moving X: ${currentX} -> ${currentX + textWidth}`)
+    
+    let textWidth
+    try {
+      textWidth = pdf.getTextWidth(part.text + ' ')
+    } catch (e) {
+      console.warn(`Error getting text width, using helvetica:`, e)
+      pdf.setFont('helvetica', fontStyle)
+      textWidth = pdf.getTextWidth(part.text + ' ')
+    }
     currentX += textWidth
   }
   
@@ -661,9 +648,6 @@ const decodeHTMLEntities = (text: string): string => {
 
 // Parse HTML content into structured elements
 const parseHTMLContent = (htmlContent: string) => {
-  console.log('\n=== HTML PARSING DEBUG ===')
-  console.log('Input HTML length:', htmlContent.length)
-  console.log('Input HTML preview:', htmlContent.substring(0, 300) + '...')
   
   const elements: Array<{
     type: string
@@ -745,15 +729,8 @@ const parseHTMLContent = (htmlContent: string) => {
     }
   }
   
-  console.log('\n=== PARSED ELEMENTS DETAILED DEBUG ===')
-  console.log('Total elements parsed:', elements.length)
   elements.forEach((el, i) => {
-    console.log(`\nElement ${i}:`)
-    console.log(`  Type: ${el.type}`)
-    console.log(`  Text: "${el.text}"`)
-    console.log(`  Text length: ${el.text.length}`)
-    console.log(`  Height: ${el.height}mm`)
-    console.log(`  Has formatted parts: ${!!el.formattedParts}`)
+  
     if (el.formattedParts) {
       console.log(`  Formatted parts count: ${el.formattedParts.length}`)
       el.formattedParts.forEach((part, j) => {
@@ -765,47 +742,128 @@ const parseHTMLContent = (htmlContent: string) => {
   return elements
 }
 
-// Helper function to process formatted content
+// Helper function to extract font size from HTML
+const extractFontSize = (html: string): number | undefined => {
+  // Check for size class (e.g., ql-size-14px, ql-size-large, ql-size-small)
+  const sizeClassMatch = html.match(/class="[^"]*ql-size-(\d+px|\w+)[^"]*"/i)
+  if (sizeClassMatch) {
+    const sizeValue = sizeClassMatch[1]
+    console.log('📏 [Generate] extractFontSize - Found size class:', sizeValue)
+    // Check if it's a pixel value (e.g., "14px")
+    if (sizeValue.endsWith('px')) {
+      return parseInt(sizeValue.replace('px', ''), 10)
+    }
+    // Otherwise it's a named size
+    const sizeMap: Record<string, number> = {
+      'small': 10,
+      'large': 18,
+      'huge': 24
+    }
+    return sizeMap[sizeValue]
+  }
+  
+  // Check for inline style font-size
+  const styleFontSize = html.match(/style="[^"]*font-size:\s*(\d+)px[^"]*"/i)
+  if (styleFontSize) {
+    console.log('📏 [Generate] extractFontSize - Found inline style font-size:', styleFontSize[1])
+    return parseInt(styleFontSize[1], 10)
+  }
+  
+  console.log('📏 [Generate] extractFontSize - No font size found in:', html.substring(0, 100))
+  return undefined
+}
+
+// Helper function to extract font family from HTML
+const extractFontFamily = (html: string): string | undefined => {
+  // Check for font class (e.g., ql-font-impact)
+  const classMatch = html.match(/class="([^"]*)"/i)
+  if (classMatch) {
+    const classes = classMatch[1].split(' ')
+    const fontClass = classes.find(c => c.startsWith('ql-font-'))
+    if (fontClass) {
+      const fontName = fontClass.replace('ql-font-', '')
+      // Map font class names to actual font families (jsPDF built-in + custom TTF fonts)
+      // Font names must match exactly what's registered in the font .js files
+      const fontMap: Record<string, string> = {
+        'sans-serif': 'helvetica',
+        'times-new-roman': 'times',
+        'courier-new': 'courier',
+        'impact': 'impact',
+        'robotoserif': 'RobotoSerif-Medium',
+        'verdana': 'Verdana',
+        'opensans': 'OpenSans-Regular',
+        'lato': 'Lato-Medium',
+        'robotomono': 'RobotoMono-Regular',
+        'georgia': 'georgia',
+        'cambria': 'Cambria',
+        'garamond': 'Garamond Regular',
+        'arial': 'Arial Regular',
+        'calibri': 'Calibri'
+      }
+      const mappedFont = fontMap[fontName] || 'helvetica'
+      return mappedFont
+    }
+  }
+  return undefined
+}
+
+// Helper function to process formatted content while preserving order
 const processFormattedContent = (content: string) => {
-  const parts: Array<{ text: string; isBold: boolean; isItalic: boolean }> = []
+  const parts: Array<{ text: string; isBold: boolean; isItalic: boolean; fontSize?: number; fontFamily?: string }> = []
   
-  // Handle bold and italic combinations
-  content = content.replace(/<strong[^>]*><em[^>]*>(.*?)<\/em><\/strong>/gi, (match, text) => {
-    parts.push({ text: decodeHTMLEntities(text.trim()), isBold: true, isItalic: true })
-    return ''
-  })
+  console.log('📝 [Generate] processFormattedContent input:', content.substring(0, 200))
   
-  content = content.replace(/<em[^>]*><strong[^>]*>(.*?)<\/strong><\/em>/gi, (match, text) => {
-    parts.push({ text: decodeHTMLEntities(text.trim()), isBold: true, isItalic: true })
-    return ''
-  })
+  // Remove underline tags but keep the content
+  content = content.replace(/<\/?u[^>]*>/gi, '')
   
-  // Handle bold text
-  content = content.replace(/<strong[^>]*>(.*?)<\/strong>/gi, (match, text) => {
-    parts.push({ text: decodeHTMLEntities(text.trim()), isBold: true, isItalic: false })
-    return ''
-  })
+  // Parse HTML in order to preserve text sequence - NOW INCLUDING SPAN TAGS
+  const regex = /(<span[^>]*>.*?<\/span>|<strong[^>]*><em[^>]*>.*?<\/em><\/strong>|<em[^>]*><strong[^>]*>.*?<\/strong><\/em>|<strong[^>]*>.*?<\/strong>|<b[^>]*>.*?<\/b>|<em[^>]*>.*?<\/em>|<i[^>]*>.*?<\/i>|[^<]+)/gi
   
-  content = content.replace(/<b[^>]*>(.*?)<\/b>/gi, (match, text) => {
-    parts.push({ text: decodeHTMLEntities(text.trim()), isBold: true, isItalic: false })
-    return ''
-  })
-  
-  // Handle italic text
-  content = content.replace(/<em[^>]*>(.*?)<\/em>/gi, (match, text) => {
-    parts.push({ text: decodeHTMLEntities(text.trim()), isBold: false, isItalic: true })
-    return ''
-  })
-  
-  content = content.replace(/<i[^>]*>(.*?)<\/i>/gi, (match, text) => {
-    parts.push({ text: decodeHTMLEntities(text.trim()), isBold: false, isItalic: true })
-    return ''
-  })
-  
-  // Handle remaining text
-  const remainingText = decodeHTMLEntities(content.replace(/<[^>]*>/g, '').trim())
-  if (remainingText) {
-    parts.push({ text: remainingText, isBold: false, isItalic: false })
+  let match
+  while ((match = regex.exec(content)) !== null) {
+    const segment = match[0]
+    
+    // Extract font properties from the segment
+    const fontSize = extractFontSize(segment)
+    const fontFamily = extractFontFamily(segment)
+    
+    console.log('📝 [Generate] Segment:', segment.substring(0, 100), '| fontSize:', fontSize, '| fontFamily:', fontFamily)
+    
+    // Check what type of formatting this segment has
+    if (segment.match(/<span[^>]*>/i)) {
+      // Span tag (may contain font styles)
+      const text = decodeHTMLEntities(segment.replace(/<[^>]*>/g, ''))
+      if (text) {
+        // Check if the span contains bold/italic tags inside
+        const isBold = segment.includes('<strong>') || segment.includes('<b>')
+        const isItalic = segment.includes('<em>') || segment.includes('<i>')
+        console.log('📝 [Generate] Adding span part:', { text: text.substring(0, 30), isBold, isItalic, fontSize, fontFamily })
+        parts.push({ text, isBold, isItalic, fontSize, fontFamily })
+      }
+    } else if (segment.match(/<strong[^>]*><em[^>]*>|<em[^>]*><strong[^>]*>/i)) {
+      // Bold + Italic
+      const text = decodeHTMLEntities(segment.replace(/<[^>]*>/g, ''))
+      if (text) {
+        parts.push({ text, isBold: true, isItalic: true, fontSize, fontFamily })
+      }
+    } else if (segment.match(/<strong[^>]*>|<b[^>]*>/i)) {
+      // Bold only
+      const text = decodeHTMLEntities(segment.replace(/<[^>]*>/g, ''))
+      if (text) {
+        parts.push({ text, isBold: true, isItalic: false, fontSize, fontFamily })
+      }
+    } else if (segment.match(/<em[^>]*>|<i[^>]*>/i)) {
+      // Italic only
+      const text = decodeHTMLEntities(segment.replace(/<[^>]*>/g, ''))
+      if (text) {
+        parts.push({ text, isBold: false, isItalic: true, fontSize, fontFamily })
+      }
+    } else if (!segment.match(/<[^>]*>/)) {
+      // Plain text (no tags)
+      if (segment) {
+        parts.push({ text: decodeHTMLEntities(segment), isBold: false, isItalic: false, fontSize, fontFamily })
+      }
+    }
   }
   
   return parts

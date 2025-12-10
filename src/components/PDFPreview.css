@@ -191,3 +191,74 @@ li[data-list="ordered"]::marker {
 .pdf-preview-content > *:last-child {
   margin-bottom: 0;
 }
+
+/* Font Family Classes - Match PDFEditor fonts */
+.pdf-preview-content .ql-font-sans-serif,
+.ql-font-sans-serif {
+  font-family: Helvetica, Arial, sans-serif !important;
+}
+
+.pdf-preview-content .ql-font-times-new-roman,
+.ql-font-times-new-roman {
+  font-family: "Times New Roman", Times, serif !important;
+}
+
+.pdf-preview-content .ql-font-courier-new,
+.ql-font-courier-new {
+  font-family: "Courier New", Courier, monospace !important;
+}
+
+.pdf-preview-content .ql-font-impact,
+.ql-font-impact {
+  font-family: Impact, "Arial Black", sans-serif !important;
+}
+
+.pdf-preview-content .ql-font-robotoserif,
+.ql-font-robotoserif {
+  font-family: "Roboto Serif", Georgia, serif !important;
+}
+
+.pdf-preview-content .ql-font-verdana,
+.ql-font-verdana {
+  font-family: Verdana, Geneva, sans-serif !important;
+}
+
+.pdf-preview-content .ql-font-opensans,
+.ql-font-opensans {
+  font-family: "Open Sans", Arial, sans-serif !important;
+}
+
+.pdf-preview-content .ql-font-lato,
+.ql-font-lato {
+  font-family: Lato, "Helvetica Neue", sans-serif !important;
+}
+
+.pdf-preview-content .ql-font-robotomono,
+.ql-font-robotomono {
+  font-family: "Roboto Mono", "Courier New", monospace !important;
+}
+
+.pdf-preview-content .ql-font-georgia,
+.ql-font-georgia {
+  font-family: Georgia, serif !important;
+}
+
+.pdf-preview-content .ql-font-cambria,
+.ql-font-cambria {
+  font-family: Cambria, Georgia, serif !important;
+}
+
+.pdf-preview-content .ql-font-garamond,
+.ql-font-garamond {
+  font-family: Garamond, "Times New Roman", serif !important;
+}
+
+.pdf-preview-content .ql-font-arial,
+.ql-font-arial {
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+.pdf-preview-content .ql-font-calibri,
+.ql-font-calibri {
+  font-family: Calibri, "Segoe UI", sans-serif !important;
+}

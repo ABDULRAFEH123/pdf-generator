@@ -9,6 +9,12 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'PDF Template Builder',
   description: 'Create professional PDF templates with custom headers and footers',
+   icons: {
+    icon: "/favicon.png", // Default favicon
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+
+  },
 }
 
 export default function RootLayout({
