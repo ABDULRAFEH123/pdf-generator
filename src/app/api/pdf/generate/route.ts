@@ -121,7 +121,11 @@ export async function POST(request: NextRequest) {
       maxHeight: textHeight,
       pageHeight,
       footerHeight,
-      margin
+      headerHeight,
+      margin,
+      pageWidth,
+      headerImageUrl: preset.header_image_url,
+      footerImageUrl: preset.footer_image_url
     })
 
     // Save PDF to buffer
@@ -188,10 +192,37 @@ const addHTMLContentToPDF = async (
     maxHeight: number
     pageHeight: number
     footerHeight: number
+    headerHeight: number
     margin: number
+    pageWidth: number
+    headerImageUrl?: string
+    footerImageUrl?: string
   }
 ) => {
-  const { x, y, width, maxHeight, pageHeight, footerHeight, margin } = options
+  const { x, y, width, maxHeight, pageHeight, footerHeight, headerHeight, margin, pageWidth, headerImageUrl, footerImageUrl } = options
+
+  // Helper function to add header and footer to any page
+  const addHeaderAndFooterToPage = async (pdf: jsPDF, pageNumber: number) => {
+    // Add header image
+    if (headerImageUrl) {
+      try {
+        const headerImg = await loadImage(headerImageUrl)
+        pdf.addImage(headerImg, 'JPEG', 0, 0, pageWidth, headerHeight)
+      } catch (error) {
+        console.error(`Failed to load header image for page ${pageNumber}:`, error)
+      }
+    }
+
+    // Add footer image
+    if (footerImageUrl) {
+      try {
+        const footerImg = await loadImage(footerImageUrl)
+        pdf.addImage(footerImg, 'JPEG', 0, pageHeight - footerHeight, pageWidth, footerHeight)
+      } catch (error) {
+        console.error(`Failed to load footer image for page ${pageNumber}:`, error)
+      }
+    }
+  }
 
   // Parse HTML content and convert to formatted text
   const parsedContent = parseHTMLContent(htmlContent)
@@ -225,8 +256,9 @@ const addHTMLContentToPDF = async (
     // Check if we need a new page
     if (currentY + element.height > pageHeight - footerHeight - margin) {
       pdf.addPage()
-      currentY = margin
       currentPage++
+      await addHeaderAndFooterToPage(pdf, currentPage)
+      currentY = headerHeight + margin
     }
     
     // Handle headings with proper font sizes and wrapping
@@ -258,7 +290,9 @@ const addHTMLContentToPDF = async (
           // Check if we need a new page
           if (currentY + (fontSize * 0.0) > pageHeight - footerHeight - margin) {
             pdf.addPage()
-            currentY = margin
+            currentPage++
+            await addHeaderAndFooterToPage(pdf, currentPage)
+            currentY = headerHeight + margin
           }
         }
       }
@@ -284,7 +318,9 @@ const addHTMLContentToPDF = async (
           
           if (currentY + 6 > pageHeight - footerHeight - margin) {
             pdf.addPage()
-            currentY = margin
+            currentPage++
+            await addHeaderAndFooterToPage(pdf, currentPage)
+            currentY = headerHeight + margin
           }
         }
       }
@@ -301,8 +337,27 @@ const addHTMLContentToPDF = async (
       if (element.formattedParts && element.formattedParts.length > 0) {
         
         // Handle formatted text with wrapping and get the new Y position
-        const newY = await addFormattedTextWithWrapping(pdf, element.formattedParts, x, currentY, width, element.align)
-        currentY = newY
+        const result = await addFormattedTextWithWrapping(
+          pdf, 
+          element.formattedParts, 
+          x, 
+          currentY, 
+          width, 
+          element.align,
+          {
+            pageHeight,
+            footerHeight,
+            headerHeight,
+            margin,
+            pageWidth,
+            headerImageUrl,
+            footerImageUrl,
+            addHeaderAndFooter: addHeaderAndFooterToPage,
+            currentPage
+          }
+        )
+        currentY = result.y
+        currentPage = result.page
       } else {
         
         // Fallback for simple text with wrapping
@@ -331,7 +386,9 @@ const addHTMLContentToPDF = async (
             // Check if we need a new page
             if (currentY + 6 > pageHeight - footerHeight - margin) {
               pdf.addPage()
-              currentY = margin
+              currentPage++
+              await addHeaderAndFooterToPage(pdf, currentPage)
+              currentY = headerHeight + margin
             }
           }
         }
@@ -352,19 +409,58 @@ const splitTextToLines = (pdf: jsPDF, text: string, maxWidth: number): string[] 
   const lines: string[] = []
   let currentLine = ''
 
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word
-    const testWidth = pdf.getTextWidth(testLine)
+  // Helper to break a long word into chunks that fit maxWidth
+  const breakLongWord = (word: string): string[] => {
+    const chunks: string[] = []
+    let currentChunk = ''
+    
+    for (const char of word) {
+      const testChunk = currentChunk + char
+      if (pdf.getTextWidth(testChunk) <= maxWidth) {
+        currentChunk = testChunk
+      } else {
+        if (currentChunk) {
+          chunks.push(currentChunk)
+        }
+        currentChunk = char
+      }
+    }
+    
+    if (currentChunk) {
+      chunks.push(currentChunk)
+    }
+    
+    return chunks
+  }
 
-    if (testWidth <= maxWidth) {
-      currentLine = testLine
-    } else {
+  for (const word of words) {
+    // First check if the word itself is too long
+    if (pdf.getTextWidth(word) > maxWidth) {
+      // Push current line if exists
       if (currentLine) {
         lines.push(currentLine)
-        currentLine = word
+        currentLine = ''
+      }
+      // Break the long word into chunks
+      const chunks = breakLongWord(word)
+      for (let i = 0; i < chunks.length - 1; i++) {
+        lines.push(chunks[i])
+      }
+      // Last chunk becomes current line (may be combined with next word)
+      currentLine = chunks[chunks.length - 1] || ''
+    } else {
+      const testLine = currentLine ? `${currentLine} ${word}` : word
+      const testWidth = pdf.getTextWidth(testLine)
+
+      if (testWidth <= maxWidth) {
+        currentLine = testLine
       } else {
-        // Single word is too long, break it
-        lines.push(word)
+        if (currentLine) {
+          lines.push(currentLine)
+          currentLine = word
+        } else {
+          lines.push(word)
+        }
       }
     }
   }
@@ -390,9 +486,21 @@ const addFormattedTextWithWrapping = async (
   x: number, 
   startY: number, 
   maxWidth: number, 
-  align?: string
-): Promise<number> => {
+  align?: string,
+  pageOptions?: {
+    pageHeight: number
+    footerHeight: number
+    headerHeight: number
+    margin: number
+    pageWidth: number
+    headerImageUrl?: string
+    footerImageUrl?: string
+    addHeaderAndFooter: (pdf: jsPDF, pageNumber: number) => Promise<void>
+    currentPage: number
+  }
+): Promise<{ y: number; page: number }> => {
   let currentY = startY
+  let currentPageNum = pageOptions?.currentPage || 1
   let currentX = x
   let currentLine = ''
   let currentLineWidth = 0
@@ -416,7 +524,44 @@ const addFormattedTextWithWrapping = async (
   // Font size in points, line height ~1.2x the font size in mm
   const calculateLineHeight = (fontSize: number): number => {
     // 1 point = 0.3528 mm, typical line height is 1.2-1.4x font size
-    return (fontSize * 0.3528 * 1.3)
+    // Use a minimum line height of 5mm for small fonts to prevent cramped text
+    const calculatedHeight = fontSize * 0.3528 * 1.2
+    const minLineHeight = 5 // minimum 5mm line height
+    return Math.max(calculatedHeight, minLineHeight)
+  }
+
+  // Helper to break a long word into chunks that fit maxWidth
+  const breakLongWord = (word: string, maxW: number): string[] => {
+    const chunks: string[] = []
+    let currentChunk = ''
+    
+    for (const char of word) {
+      const testChunk = currentChunk + char
+      if (pdf.getTextWidth(testChunk) <= maxW) {
+        currentChunk = testChunk
+      } else {
+        if (currentChunk) {
+          chunks.push(currentChunk)
+        }
+        currentChunk = char
+      }
+    }
+    
+    if (currentChunk) {
+      chunks.push(currentChunk)
+    }
+    
+    return chunks.length > 0 ? chunks : [word]
+  }
+
+  // Helper to check and handle page breaks
+  const checkPageBreak = async (lineHeight: number): Promise<void> => {
+    if (pageOptions && currentY + lineHeight > pageOptions.pageHeight - pageOptions.footerHeight - pageOptions.margin) {
+      pdf.addPage()
+      currentPageNum++
+      await pageOptions.addHeaderAndFooter(pdf, currentPageNum)
+      currentY = pageOptions.headerHeight + pageOptions.margin
+    }
   }
 
   // Build the full text with formatting info
@@ -426,9 +571,8 @@ const addFormattedTextWithWrapping = async (
     const fontSize = part.fontSize || 14
     
     for (let i = 0; i < words.length; i++) {
-      const word = words[i]
+      let word = words[i]
       const spaceNeeded = i === 0 && currentLine === '' ? '' : ' '
-      const testText = spaceNeeded + word
       
       // Set font to measure correctly
       let fontStyle = 'normal'
@@ -443,6 +587,55 @@ const addFormattedTextWithWrapping = async (
       safeSetFont(fontFamily, fontStyle)
       pdf.setFontSize(fontSize)
       
+      // Check if the word itself is too long and needs to be broken
+      const wordWidth = pdf.getTextWidth(word)
+      if (wordWidth > maxWidth) {
+        // First, render current line if exists
+        if (currentLine) {
+          await renderLine(pdf, parts, x, currentY, maxWidth, align)
+          const lineHeight = calculateLineHeight(currentLineMaxFontSize)
+          console.log(`📏 Line height for font size ${currentLineMaxFontSize}pt: ${lineHeight.toFixed(2)}mm`)
+          parts.length = 0
+          currentY += lineHeight
+          // Check for page break
+          await checkPageBreak(lineHeight)
+          currentLineMaxFontSize = fontSize
+          currentLine = ''
+          currentLineWidth = 0
+        }
+        
+        // Break the long word into chunks
+        const chunks = breakLongWord(word, maxWidth)
+        for (let j = 0; j < chunks.length; j++) {
+          const chunk = chunks[j]
+          if (j < chunks.length - 1) {
+            // Render each chunk except the last one
+            parts.push({
+              text: chunk,
+              x: currentX,
+              isBold: part.isBold,
+              isItalic: part.isItalic,
+              fontSize: fontSize,
+              fontFamily: fontFamily
+            })
+            await renderLine(pdf, parts, x, currentY, maxWidth, align)
+            const lineHeight = calculateLineHeight(fontSize)
+            console.log(`📏 Line height for font size ${fontSize}pt: ${lineHeight.toFixed(2)}mm`)
+            parts.length = 0
+            currentY += lineHeight
+            // Check for page break after each chunk
+            await checkPageBreak(lineHeight)
+          } else {
+            // Last chunk becomes current line
+            currentLine = chunk
+            currentLineWidth = pdf.getTextWidth(chunk)
+            currentLineMaxFontSize = fontSize
+          }
+        }
+        continue
+      }
+      
+      const testText = spaceNeeded + word
       const testWidth = pdf.getTextWidth(testText)
       
       if (currentLineWidth + testWidth <= maxWidth) {
@@ -463,6 +656,8 @@ const addFormattedTextWithWrapping = async (
           console.log(`📏 Line height for font size ${currentLineMaxFontSize}pt: ${lineHeight.toFixed(2)}mm`)
           parts.length = 0
           currentY += lineHeight
+          // Check for page break
+          await checkPageBreak(lineHeight)
           currentLineMaxFontSize = fontSize // Reset to current font size for new line
         }
         
@@ -494,7 +689,7 @@ const addFormattedTextWithWrapping = async (
   }
 
   console.log(`🟢 FORMATTED TEXT COMPLETE: Final Y position: ${currentY}`)
-  return currentY
+  return { y: currentY, page: currentPageNum }
 }
 
 // Helper function to render a line with mixed formatting

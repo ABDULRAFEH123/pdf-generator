@@ -31,39 +31,39 @@ export default function PDFEditor({
 
 
 
-useEffect(() => {
-  if (typeof window === 'undefined') return;
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
 
-  // Dynamically import Quill only in the browser
-  import('react-quill-new').then(({ Quill }) => {
-    const FontAttributor = Quill.import('attributors/class/font') as any;
-    // Only working fonts - jsPDF built-in + custom TTF fonts
-    FontAttributor.whitelist = [
-      'sans-serif',      // Maps to Helvetica in PDF
-      'times-new-roman', // Maps to Times in PDF
-      'courier-new',     // Maps to Courier in PDF
-      'impact',          // Maps to Impact in PDF (custom TTF)
-      'robotoserif',     // Maps to RobotoSerif-Medium in PDF (custom TTF)
-      'verdana',         // Maps to Verdana in PDF (custom TTF)
-      'opensans',        // Maps to OpenSans-Regular in PDF (custom TTF)
-      'lato',            // Maps to Lato-Medium in PDF (custom TTF)
-      'robotomono',      // Maps to RobotoMono-Regular in PDF (custom TTF)
-      'georgia',         // Maps to georgia in PDF (custom TTF)
-      'cambria',         // Maps to Cambria in PDF (custom TTF)
-      'garamond',        // Maps to Garamond-Regular in PDF (custom TTF)
-      'arial',           // Maps to Arial-Regular in PDF (custom TTF)
-      'calibri'          // Maps to Calibri in PDF (custom TTF)
-    ];
-    Quill.register(FontAttributor, true);
+    // Dynamically import Quill only in the browser
+    import('react-quill-new').then(({ Quill }) => {
+      const FontAttributor = Quill.import('attributors/class/font') as any;
+      // Only working fonts - jsPDF built-in + custom TTF fonts
+      FontAttributor.whitelist = [
+        'sans-serif',      // Maps to Helvetica in PDF
+        'times-new-roman', // Maps to Times in PDF
+        'courier-new',     // Maps to Courier in PDF
+        'impact',          // Maps to Impact in PDF (custom TTF)
+        'robotoserif',     // Maps to RobotoSerif-Medium in PDF (custom TTF)
+        'verdana',         // Maps to Verdana in PDF (custom TTF)
+        'opensans',        // Maps to OpenSans-Regular in PDF (custom TTF)
+        'lato',            // Maps to Lato-Medium in PDF (custom TTF)
+        'robotomono',      // Maps to RobotoMono-Regular in PDF (custom TTF)
+        'georgia',         // Maps to georgia in PDF (custom TTF)
+        'cambria',         // Maps to Cambria in PDF (custom TTF)
+        'garamond',        // Maps to Garamond-Regular in PDF (custom TTF)
+        'arial',           // Maps to Arial-Regular in PDF (custom TTF)
+        'calibri'          // Maps to Calibri in PDF (custom TTF)
+      ];
+      Quill.register(FontAttributor, true);
 
-    const SizeAttributor = Quill.import('attributors/style/size') as any;
-    // All font sizes from 1px to 99px
-    SizeAttributor.whitelist = [
-      '1px','2px','3px','4px','5px','6px','7px','8px','9px','10px','11px','12px','13px','14px','15px','16px','17px','18px','19px','20px','21px','22px','23px','24px','25px','26px','27px','28px','29px','30px','31px','32px','33px','34px','35px','36px','37px','38px','39px','40px','41px','42px','43px','44px','45px','46px','47px','48px','49px','50px','51px','52px','53px','54px','55px','56px','57px','58px','59px','60px','61px','62px','63px','64px','65px','66px','67px','68px','69px','70px','71px','72px','73px','74px','75px','76px','77px','78px','79px','80px','81px','82px','83px','84px','85px','86px','87px','88px','89px','90px','91px','92px','93px','94px','95px','96px','97px','98px','99px'
-    ];
-    Quill.register(SizeAttributor, true);
-  });
-}, []);
+      const SizeAttributor = Quill.import('attributors/style/size') as any;
+      // All font sizes from 1px to 99px
+      SizeAttributor.whitelist = [
+        '1px', '2px', '3px', '4px', '5px', '6px', '7px', '8px', '9px', '10px', '11px', '12px', '13px', '14px', '15px', '16px', '17px', '18px', '19px', '20px', '21px', '22px', '23px', '24px', '25px', '26px', '27px', '28px', '29px', '30px', '31px', '32px', '33px', '34px', '35px', '36px', '37px', '38px', '39px', '40px', '41px', '42px', '43px', '44px', '45px', '46px', '47px', '48px', '49px', '50px', '51px', '52px', '53px', '54px', '55px', '56px', '57px', '58px', '59px', '60px', '61px', '62px', '63px', '64px', '65px', '66px', '67px', '68px', '69px', '70px', '71px', '72px', '73px', '74px', '75px', '76px', '77px', '78px', '79px', '80px', '81px', '82px', '83px', '84px', '85px', '86px', '87px', '88px', '89px', '90px', '91px', '92px', '93px', '94px', '95px', '96px', '97px', '98px', '99px'
+      ];
+      Quill.register(SizeAttributor, true);
+    });
+  }, []);
 
 
 
@@ -71,11 +71,25 @@ useEffect(() => {
     setMounted(true)
   }, [])
 
+  // Set default font size (14px) in the toolbar picker on mount
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+
+    // Wait a bit for Quill to initialize
+    const timer = setTimeout(() => {
+      const sizePicker = document.querySelector('.ql-picker.ql-size .ql-picker-label') as HTMLElement
+      if (sizePicker && !sizePicker.getAttribute('data-value')) {
+        sizePicker.setAttribute('data-value', '14px')
+      }
+    }, 100)
+
+    return () => clearTimeout(timer)
+  }, [mounted])
+
   useEffect(() => {
     // Only update content from props on initial load or when externally changed
     // Don't update if we're actively editing (prevents circular updates)
     if (value && value !== content && !content) {
-      console.log('📥 Initial content load from parent prop')
       setContent(value)
     }
   }, [value])
@@ -136,14 +150,11 @@ useEffect(() => {
   }
 
   const handleChange = (html: string) => {
-    console.log('\n� ========== HANDLE CHANGE START ==========')
-    console.log('📝 Raw HTML received:', html.substring(0, 200) + (html.length > 200 ? '...' : ''))
 
     // Check for font-related classes and styles in raw HTML
     const hasFontClass = /class="[^"]*ql-font-[^"]*"/.test(html)
     const hasFontStyle = /style="[^"]*font-family:[^"]*"/.test(html)
-    console.log('🔍 Raw HTML has font class:', hasFontClass)
-    console.log('🔍 Raw HTML has font-family style:', hasFontStyle)
+
 
     setContent(html)
 
@@ -151,7 +162,7 @@ useEffect(() => {
     let cleanedHtml = html
       // Keep ql-align-, ql-font- classes (font family classes)
       .replace(/class="([^"]*)"/g, (match, classes) => {
-        const keepClasses = classes.split(' ').filter((c: string) => 
+        const keepClasses = classes.split(' ').filter((c: string) =>
           c.startsWith('ql-align-') || c.startsWith('ql-font-')
         )
         if (keepClasses.length > 0) {
@@ -194,10 +205,6 @@ useEffect(() => {
     // Check final cleaned HTML
     const cleanedHasFontClass = /class="[^"]*ql-font-[^"]*"/.test(cleanedHtml)
     const cleanedHasFontStyle = /style="[^"]*font-family:[^"]*"/.test(cleanedHtml)
-    console.log('🔍 Cleaned HTML has font class:', cleanedHasFontClass)
-    console.log('🔍 Cleaned HTML has font-family style:', cleanedHasFontStyle)
-    console.log('✨ Final cleaned HTML:', cleanedHtml.substring(0, 200) + (cleanedHtml.length > 200 ? '...' : ''))
-    console.log('🔄 ========== HANDLE CHANGE END ==========\n')
 
     onChange?.(cleanedHtml)
   }
@@ -207,7 +214,7 @@ useEffect(() => {
     toolbar: [
       [
         { 'font': ['sans-serif', 'times-new-roman', 'courier-new', 'impact', 'robotoserif', 'verdana', 'opensans', 'lato', 'robotomono', 'georgia', 'cambria', 'garamond', 'arial', 'calibri'] },
-        { size: ['1px','2px','3px','4px','5px','6px','7px','8px','9px','10px','11px','12px','13px','14px','15px','16px','17px','18px','19px','20px','21px','22px','23px','24px','25px','26px','27px','28px','29px','30px','31px','32px','33px','34px','35px','36px','37px','38px','39px','40px','41px','42px','43px','44px','45px','46px','47px','48px','49px','50px','51px','52px','53px','54px','55px','56px','57px','58px','59px','60px','61px','62px','63px','64px','65px','66px','67px','68px','69px','70px','71px','72px','73px','74px','75px','76px','77px','78px','79px','80px','81px','82px','83px','84px','85px','86px','87px','88px','89px','90px','91px','92px','93px','94px','95px','96px','97px','98px','99px'] }
+        { size: ['1px', '2px', '3px', '4px', '5px', '6px', '7px', '8px', '9px', '10px', '11px', '12px', '13px', '14px', '15px', '16px', '17px', '18px', '19px', '20px', '21px', '22px', '23px', '24px', '25px', '26px', '27px', '28px', '29px', '30px', '31px', '32px', '33px', '34px', '35px', '36px', '37px', '38px', '39px', '40px', '41px', '42px', '43px', '44px', '45px', '46px', '47px', '48px', '49px', '50px', '51px', '52px', '53px', '54px', '55px', '56px', '57px', '58px', '59px', '60px', '61px', '62px', '63px', '64px', '65px', '66px', '67px', '68px', '69px', '70px', '71px', '72px', '73px', '74px', '75px', '76px', '77px', '78px', '79px', '80px', '81px', '82px', '83px', '84px', '85px', '86px', '87px', '88px', '89px', '90px', '91px', '92px', '93px', '94px', '95px', '96px', '97px', '98px', '99px'] }
       ],
       ['bold', 'italic', 'underline'],
       [{ header: [1, 2, 3, false] }],
@@ -346,6 +353,24 @@ useEffect(() => {
       .ql-snow .ql-picker.ql-size .ql-picker-item::before { content: attr(data-value); }
       .ql-snow .ql-picker.ql-size .ql-picker-label::before { content: attr(data-value); }
       
+      /* Default size display - show 14px when no size is selected */
+      .ql-snow .ql-picker.ql-size .ql-picker-label:not([data-value])::before,
+      .ql-snow .ql-picker.ql-size .ql-picker-label[data-value=""]::before { 
+        content: "14px" !important; 
+      }
+      
+      /* Highlight the default 14px option in dropdown */
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"] {
+        font-weight: bold !important;
+        background-color: #e3f2fd !important;
+      }
+      .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::after {
+        content: " (default)";
+        font-size: 10px;
+        color: #666;
+        font-weight: normal;
+      }
+      
       /* Global font classes for preview and PDF */
       .ql-font-sans-serif { font-family: Helvetica, Arial, sans-serif !important; }
       .ql-font-times-new-roman { font-family: \"Times New Roman\", Times, serif !important; }
@@ -409,7 +434,7 @@ useEffect(() => {
           max-height: 400px;
           height: auto;
           font-size: 14px;
-          line-height: 1.5;
+          line-height: 1.4;
           font-family: system-ui, -apple-system, sans-serif;
           overflow-y: auto;
           flex: 1;
@@ -470,6 +495,48 @@ useEffect(() => {
         .ql-editor p {
           margin: 4px 0;
           line-height: 1.5;
+        }
+        
+/* Explicit line-height for 1px–12px font sizes */
+.ql-editor span[style*="font-size: 1px"]  { line-height: 1px !important; }
+.ql-editor span[style*="font-size: 2px"]  { line-height: 2px !important; }
+.ql-editor span[style*="font-size: 3px"]  { line-height: 3px !important; }
+.ql-editor span[style*="font-size: 4px"]  { line-height: 4px !important; }
+.ql-editor span[style*="font-size: 5px"]  { line-height: 5px !important; }
+.ql-editor span[style*="font-size: 6px"]  { line-height: 6px !important; }
+.ql-editor span[style*="font-size: 7px"]  { line-height: 7px !important; }
+.ql-editor span[style*="font-size: 8px"]  { line-height: 8px !important; }
+.ql-editor span[style*="font-size: 9px"]  { line-height: 10px !important; }
+.ql-editor span[style*="font-size: 10px"] { line-height: 12px !important; }
+.ql-editor span[style*="font-size: 11px"] { line-height: 13px !important; }
+.ql-editor span[style*="font-size: 12px"] { line-height: 14px !important; }
+
+        /* Font sizes above 12px - normal line height (1.5) */
+        .ql-editor span[style*="font-size: 13px"],
+        .ql-editor span[style*="font-size: 14px"],
+        .ql-editor span[style*="font-size: 15px"],
+        .ql-editor span[style*="font-size: 16px"],
+        .ql-editor span[style*="font-size: 17px"],
+        .ql-editor span[style*="font-size: 18px"],
+        .ql-editor span[style*="font-size: 19px"],
+        .ql-editor span[style*="font-size: 20px"],
+        .ql-editor span[style*="font-size: 21px"],
+        .ql-editor span[style*="font-size: 22px"],
+        .ql-editor span[style*="font-size: 23px"],
+        .ql-editor span[style*="font-size: 24px"],
+        .ql-editor span[style*="font-size: 25px"],
+        .ql-editor span[style*="font-size: 26px"],
+        .ql-editor span[style*="font-size: 27px"],
+        .ql-editor span[style*="font-size: 28px"],
+        .ql-editor span[style*="font-size: 29px"],
+        .ql-editor span[style*="font-size: 30px"] {
+          line-height: 1.5 !important;
+        }
+        
+        /* Paragraphs should not enforce a minimum line height - let spans control it */
+        .ql-editor p {
+          margin: 4px 0;
+          line-height: inherit;
         }
         
         .ql-editor ul, .ql-editor ol {
