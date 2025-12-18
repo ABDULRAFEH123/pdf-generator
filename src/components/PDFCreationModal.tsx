@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { usePDFGeneration } from '@/hooks/usePDFGeneration'
+import { usePDFGenerationV2 } from '@/hooks/usePDFGenerationV2'
 import { toast } from 'react-hot-toast'
 import PDFEditor from '@/components/PDFEditor'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
@@ -36,7 +36,7 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
   const [mounted, setMounted] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [saving, setSaving] = useState(false)
-  const generatePDFMutation = usePDFGeneration()
+  const generatePDFMutation = usePDFGenerationV2()
 
   useEffect(() => {
     setMounted(true)
@@ -91,7 +91,7 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
         setSaving(false)
       }
     } else {
-      // Create new PDF
+      // Create new PDF using client-side html2canvas approach
       if (!userId) {
         toast.error('User ID is required')
         return
@@ -101,7 +101,14 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
         presetId: preset.id,
         content,
         userId,
-        pdfName: pdfName.trim() || `PDF - ${preset.name}`
+        pdfName: pdfName.trim() || `PDF - ${preset.name}`,
+        // Pass preset details for client-side generation
+        headerImageUrl: preset.header_image_url,
+        footerImageUrl: preset.footer_image_url,
+        headerHeight: preset.header_height,
+        footerHeight: preset.footer_height,
+        pdfWidth: preset.pdf_sizes.width,
+        pdfHeight: preset.pdf_sizes.height
       }, {
         onSuccess: () => {
           // Close modal after successful generation

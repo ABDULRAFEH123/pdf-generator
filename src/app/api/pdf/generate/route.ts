@@ -4,6 +4,7 @@ import jsPDF from 'jspdf'
 import '@/assets/font/impact-normal.js'
 import '@/assets/font/RobotoSerif-Medium-normal.js'
 import '@/assets/font/Verdana-normal.js'
+import '@/assets/font/verdanab-bold.js'
 import '@/assets/font/OpenSans-Regular-normal.js'
 import '@/assets/font/Lato-Medium-normal.js'
 import '@/assets/font/RobotoMono-Regular-normal.js'
@@ -703,18 +704,53 @@ const renderLine = async (
 ) => {
   if (parts.length === 0) return
 
+  // List of jsPDF built-in fonts that support bold/italic styles
+  const builtInFonts = ['helvetica', 'times', 'courier']
+  
+  // Custom fonts that have bold variants registered
+  const customFontsWithBold = ['verdana']
+
   // Helper to safely set font with fallback
-  const safeSetFont = (fontFamily: string, fontStyle: string) => {
-    try {
-      // Custom fonts typically only support 'normal' style
-      const isCustomFont = !['helvetica', 'times', 'courier'].includes(fontFamily.toLowerCase())
-      const actualStyle = isCustomFont ? 'normal' : fontStyle
-      pdf.setFont(fontFamily, actualStyle)
-      return fontFamily
-    } catch (e) {
-      console.warn(`Font ${fontFamily} not available, falling back to helvetica`)
-      pdf.setFont('helvetica', fontStyle)
-      return 'helvetica'
+  // For custom fonts that don't support bold/italic, fall back to Helvetica with the style
+  const safeSetFont = (fontFamily: string, fontStyle: string, needsBoldOrItalic: boolean): string => {
+    const fontLower = fontFamily.toLowerCase()
+    const isBuiltIn = builtInFonts.includes(fontLower)
+    const hasBoldVariant = customFontsWithBold.includes(fontLower)
+    
+    if (isBuiltIn) {
+      // Built-in font - use with requested style
+      try {
+        pdf.setFont(fontFamily, fontStyle)
+        return fontFamily
+      } catch (e) {
+        pdf.setFont('helvetica', fontStyle)
+        return 'helvetica'
+      }
+    } else if (hasBoldVariant && (fontStyle === 'bold' || fontStyle === 'bolditalic')) {
+      // Custom font with bold variant - use it
+      try {
+        pdf.setFont(fontFamily, fontStyle)
+        return fontFamily
+      } catch (e) {
+        // If bold variant fails, fall back to helvetica bold
+        pdf.setFont('helvetica', fontStyle)
+        return 'helvetica'
+      }
+    } else {
+      // Custom font without bold variant - if bold/italic is needed, use Helvetica
+      if (needsBoldOrItalic) {
+        pdf.setFont('helvetica', fontStyle)
+        return 'helvetica'
+      } else {
+        // Normal style - use the custom font
+        try {
+          pdf.setFont(fontFamily, 'normal')
+          return fontFamily
+        } catch (e) {
+          pdf.setFont('helvetica', 'normal')
+          return 'helvetica'
+        }
+      }
     }
   }
 
@@ -731,7 +767,8 @@ const renderLine = async (
     }
     const fontFamily = part.fontFamily || 'helvetica'
     const fontSize = part.fontSize || 14
-    safeSetFont(fontFamily, fontStyle)
+    const needsBoldOrItalic = part.isBold || part.isItalic
+    safeSetFont(fontFamily, fontStyle, needsBoldOrItalic)
     pdf.setFontSize(fontSize)
     try {
       totalWidth += pdf.getTextWidth(part.text + ' ')
@@ -764,8 +801,9 @@ const renderLine = async (
     const fontFamily = part.fontFamily || 'helvetica'
     const fontSize = part.fontSize || 14
     
-    // Use safe font setting
-    const actualFont = safeSetFont(fontFamily, fontStyle)
+    // Use safe font setting - pass whether bold/italic is needed
+    const needsBoldOrItalic = part.isBold || part.isItalic
+    const actualFont = safeSetFont(fontFamily, fontStyle, needsBoldOrItalic)
     pdf.setFontSize(fontSize)
     pdf.text(part.text, currentX, y)
     

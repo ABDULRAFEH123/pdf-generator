@@ -6,7 +6,7 @@
   font-family: 'system-ui', -apple-system, sans-serif;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 4px;
+  padding: 4px 30px;
 }
 
 /* Reset any default margins for cleaner preview */
@@ -96,10 +96,16 @@
 .pdf-preview-content li {
   margin: 2px 0 !important;
   padding-left: 4px !important;
-  line-height: 1.4 !important;
+  line-height: 1.5 !important;
   display: list-item !important;
+  position: relative !important;
+}
+
+.pdf-preview-content li::marker {
+  font-size: 1em !important;
   color: #000 !important;
 }
+
 
 /* Handle Quill's list items with data-list attribute - override parent list type */
 /* Using highest specificity to override ol/ul defaults */

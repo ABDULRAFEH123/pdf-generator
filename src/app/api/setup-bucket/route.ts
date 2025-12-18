@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if bucket exists
+    // Check if buckets exist
     const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets()
     
     if (listError) {
@@ -13,38 +13,52 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const bucketExists = buckets?.some(bucket => bucket.name === 'pdf-images')
+    const results: { bucket: string; status: string }[] = []
+
+    // Setup pdf-images bucket (for header/footer images)
+    const pdfImagesBucketExists = buckets?.some(bucket => bucket.name === 'pdf-images')
     
-    if (bucketExists) {
-      return NextResponse.json({
-        success: true,
-        message: 'Bucket already exists',
-        bucket: 'pdf-images'
+    if (pdfImagesBucketExists) {
+      results.push({ bucket: 'pdf-images', status: 'already exists' })
+    } else {
+      const { error } = await supabaseAdmin.storage.createBucket('pdf-images', {
+        public: true,
+        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+        fileSizeLimit: 5242880 // 5MB
       })
+      if (error) {
+        results.push({ bucket: 'pdf-images', status: `failed: ${error.message}` })
+      } else {
+        results.push({ bucket: 'pdf-images', status: 'created' })
+      }
     }
 
-    // Create the bucket
-    const { data, error } = await supabaseAdmin.storage.createBucket('pdf-images', {
-      public: true,
-      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-      fileSizeLimit: 5242880 // 5MB
-    })
-
-    if (error) {
-      return NextResponse.json({
-        success: false,
-        error: `Failed to create bucket: ${error.message}`
+    // Setup pdfs bucket (for generated PDF files)
+    const pdfsBucketExists = buckets?.some(bucket => bucket.name === 'pdfs')
+    
+    if (pdfsBucketExists) {
+      results.push({ bucket: 'pdfs', status: 'already exists' })
+    } else {
+      const { error } = await supabaseAdmin.storage.createBucket('pdfs', {
+        public: true,
+        allowedMimeTypes: ['application/pdf'],
+        fileSizeLimit: 52428800 // 50MB for PDFs
       })
+      if (error) {
+        results.push({ bucket: 'pdfs', status: `failed: ${error.message}` })
+      } else {
+        results.push({ bucket: 'pdfs', status: 'created' })
+      }
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Bucket created successfully! Now you need to set up storage policies in the Supabase dashboard.',
-      bucket: 'pdf-images',
+      message: 'Bucket setup complete',
+      results,
       instructions: [
         '1. Go to your Supabase dashboard',
         '2. Click on "Storage" in the sidebar',
-        '3. Click on the "pdf-images" bucket',
+        '3. For each bucket (pdf-images, pdfs), set up policies:',
         '4. Go to the "Policies" tab',
         '5. Create the following policies:',
         '   - INSERT: Allow authenticated users',
