@@ -144,7 +144,19 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
   const pageBottomPadding = 20 // 20px padding at bottom of each page content area
   const usableContentHeight = scaledContentHeight - pageBottomPadding
   
-  const numPages = Math.max(1, Math.ceil(totalContentHeight / usableContentHeight))
+  // Find all safe break points (whitespace rows) in the content canvas
+  const safeBreakPoints = findSafeBreakPoints(fullContentCanvas, scale)
+  console.log('📍 Found safe break points:', safeBreakPoints.length)
+  
+  // Calculate page breaks using safe break points
+  const pageBreaks = calculatePageBreaks(
+    totalContentHeight,
+    usableContentHeight,
+    safeBreakPoints,
+    scale
+  )
+  
+  const numPages = pageBreaks.length
   
   console.log('📏 Content captured:', {
     canvasSize: `${fullContentCanvas.width}×${fullContentCanvas.height}px`,
@@ -152,7 +164,8 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
     scaledContentHeight,
     usableContentHeight,
     pageBottomPadding,
-    numPages
+    numPages,
+    pageBreaks: pageBreaks.map((pb: PageBreak) => ({ start: pb.startY, end: pb.endY, height: pb.endY - pb.startY }))
   })
   
   // Step 2: Pre-load header and footer images
@@ -175,7 +188,12 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
   })
   
   for (let pageNum = 0; pageNum < numPages; pageNum++) {
-    console.log(`📄 Creating page ${pageNum + 1}/${numPages}...`)
+    const pageBreak = pageBreaks[pageNum]
+    console.log(`📄 Creating page ${pageNum + 1}/${numPages}...`, {
+      startY: pageBreak.startY,
+      endY: pageBreak.endY,
+      sliceHeight: pageBreak.endY - pageBreak.startY
+    })
     
     if (pageNum > 0) {
       pdf.addPage()
@@ -196,13 +214,9 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
       ctx.drawImage(headerCanvas, 0, 0)
     }
     
-    // Draw content slice for this page
-    // Use usableContentHeight for offset calculation to account for page padding
-    const contentYOffset = pageNum * usableContentHeight * scale
-    const contentSliceHeight = Math.min(
-      usableContentHeight * scale,
-      fullContentCanvas.height - contentYOffset
-    )
+    // Draw content slice for this page using smart page breaks
+    const contentYOffset = pageBreak.startY * scale
+    const contentSliceHeight = (pageBreak.endY - pageBreak.startY) * scale
     
     if (contentSliceHeight > 0) {
       // Debug: Log exact drawing dimensions
@@ -210,7 +224,8 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
         fullContentCanvasWidth: fullContentCanvas.width,
         pageCanvasWidth: pageCanvas.width,
         widthMatch: fullContentCanvas.width === pageCanvas.width,
-        destX: 0,
+        contentYOffset,
+        contentSliceHeight,
         destY: scaledHeaderHeight * scale
       })
       
@@ -271,6 +286,163 @@ async function loadImageToCanvas(
     }
     img.src = url
   })
+}
+
+/**
+ * Interface for page break info
+ */
+interface PageBreak {
+  startY: number
+  endY: number
+}
+
+/**
+ * Scans the canvas to find rows that are entirely white/empty (safe break points).
+ * These are the best places to split pages without cutting through text.
+ * Returns Y positions (in unscaled pixels) where it's safe to break.
+ */
+function findSafeBreakPoints(canvas: HTMLCanvasElement, scale: number): number[] {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return []
+  
+  const safeBreaks: number[] = []
+  const width = canvas.width
+  const height = canvas.height
+  
+  // Sample every few pixels for performance (check every 2nd row)
+  const rowStep = 2
+  // Minimum white row thickness to consider it a safe break (in scaled pixels)
+  const minWhiteRowThickness = 4 * scale
+  
+  let consecutiveWhiteRows = 0
+  let whiteRowStart = -1
+  
+  for (let y = 0; y < height; y += rowStep) {
+    const imageData = ctx.getImageData(0, y, width, 1)
+    const data = imageData.data
+    
+    // Check if this row is "white enough" (all pixels are very light)
+    let isWhiteRow = true
+    for (let x = 0; x < width * 4; x += 16) { // Sample every 4th pixel for speed
+      const r = data[x]
+      const g = data[x + 1]
+      const b = data[x + 2]
+      // Consider it white if RGB values are all above 250
+      if (r < 250 || g < 250 || b < 250) {
+        isWhiteRow = false
+        break
+      }
+    }
+    
+    if (isWhiteRow) {
+      if (whiteRowStart === -1) {
+        whiteRowStart = y
+      }
+      consecutiveWhiteRows += rowStep
+    } else {
+      // End of white region - if it was thick enough, mark the middle as a safe break
+      if (consecutiveWhiteRows >= minWhiteRowThickness && whiteRowStart !== -1) {
+        const breakPoint = Math.floor((whiteRowStart + y) / 2 / scale)
+        safeBreaks.push(breakPoint)
+      }
+      consecutiveWhiteRows = 0
+      whiteRowStart = -1
+    }
+  }
+  
+  // Handle trailing white rows at end
+  if (consecutiveWhiteRows >= minWhiteRowThickness && whiteRowStart !== -1) {
+    const breakPoint = Math.floor((whiteRowStart + height) / 2 / scale)
+    safeBreaks.push(breakPoint)
+  }
+  
+  return safeBreaks
+}
+
+/**
+ * Calculates page breaks using safe break points.
+ * Tries to fit as much content as possible per page while only breaking at safe points.
+ */
+function calculatePageBreaks(
+  totalContentHeight: number,
+  usableContentHeight: number,
+  safeBreakPoints: number[],
+  scale: number
+): PageBreak[] {
+  const pageBreaks: PageBreak[] = []
+  let currentStart = 0
+  
+  while (currentStart < totalContentHeight) {
+    // Target end position for this page
+    const targetEnd = currentStart + usableContentHeight
+    
+    // If remaining content fits on this page, take it all
+    if (targetEnd >= totalContentHeight) {
+      pageBreaks.push({
+        startY: currentStart,
+        endY: totalContentHeight
+      })
+      break
+    }
+    
+    // Find the best safe break point before the target end
+    // Look for a break point between 70% and 100% of the target range
+    const minBreakY = currentStart + (usableContentHeight * 0.7)
+    const maxBreakY = targetEnd
+    
+    let bestBreak = -1
+    for (const breakPoint of safeBreakPoints) {
+      if (breakPoint > currentStart && breakPoint >= minBreakY && breakPoint <= maxBreakY) {
+        bestBreak = breakPoint
+      }
+      if (breakPoint > maxBreakY) break
+    }
+    
+    // If no safe break found in range, look for ANY safe break after minBreakY
+    if (bestBreak === -1) {
+      for (const breakPoint of safeBreakPoints) {
+        if (breakPoint > currentStart && breakPoint <= maxBreakY) {
+          bestBreak = breakPoint
+        }
+        if (breakPoint > maxBreakY) break
+      }
+    }
+    
+    // If still no safe break found, fall back to target end (might cut text)
+    // But try to find ANY break point nearby
+    if (bestBreak === -1) {
+      // Last resort: find closest break point to target
+      let closestBreak = -1
+      let closestDist = Infinity
+      for (const breakPoint of safeBreakPoints) {
+        if (breakPoint > currentStart) {
+          const dist = Math.abs(breakPoint - targetEnd)
+          if (dist < closestDist && dist < usableContentHeight * 0.3) {
+            closestDist = dist
+            closestBreak = breakPoint
+          }
+        }
+      }
+      bestBreak = closestBreak !== -1 ? closestBreak : targetEnd
+    }
+    
+    pageBreaks.push({
+      startY: currentStart,
+      endY: bestBreak
+    })
+    
+    currentStart = bestBreak
+  }
+  
+  // Ensure we have at least one page
+  if (pageBreaks.length === 0) {
+    pageBreaks.push({
+      startY: 0,
+      endY: totalContentHeight
+    })
+  }
+  
+  return pageBreaks
 }
 
 /**
