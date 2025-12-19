@@ -676,7 +676,6 @@ const addFormattedTextWithWrapping = async (
         if (currentLine) {
           await renderLine(pdf, parts, x, currentY, maxWidth, align)
           const lineHeight = calculateLineHeight(currentLineMaxFontSize)
-          console.log(`📏 Line height for font size ${currentLineMaxFontSize}pt: ${lineHeight.toFixed(2)}mm`)
           parts.length = 0
           currentY += lineHeight
           // Check for page break
@@ -702,7 +701,6 @@ const addFormattedTextWithWrapping = async (
             })
             await renderLine(pdf, parts, x, currentY, maxWidth, align)
             const lineHeight = calculateLineHeight(fontSize)
-            console.log(`📏 Line height for font size ${fontSize}pt: ${lineHeight.toFixed(2)}mm`)
             parts.length = 0
             currentY += lineHeight
             // Check for page break after each chunk
@@ -722,7 +720,6 @@ const addFormattedTextWithWrapping = async (
       try {
         testWidth = pdf.getTextWidth(testText)
       } catch (e) {
-        console.warn(`Error getting text width for font ${fontFamily}, using helvetica:`, e)
         pdf.setFont('helvetica', fontStyle)
         testWidth = pdf.getTextWidth(testText)
       }
@@ -742,7 +739,6 @@ const addFormattedTextWithWrapping = async (
           await renderLine(pdf, parts, x, currentY, maxWidth, align)
           // Calculate line height based on the largest font size on this line
           const lineHeight = calculateLineHeight(currentLineMaxFontSize)
-          console.log(`📏 Line height for font size ${currentLineMaxFontSize}pt: ${lineHeight.toFixed(2)}mm`)
           parts.length = 0
           currentY += lineHeight
           // Check for page break

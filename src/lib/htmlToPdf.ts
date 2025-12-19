@@ -64,11 +64,14 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
   })
 
   // Calculate padding - apply padding INSIDE the content area, not on the container
-  const horizontalPadding = 60 // 60px padding on left and right
+  // Letter size (2550 × 3300) needs extra horizontal padding as content appears too wide
+  const isLetterSize = pdfWidth === 2550 && pdfHeight === 3300
+  const horizontalPadding = isLetterSize ? 100 : 60 // 100px for Letter, 60px for others
   const verticalPadding = 15  // 15px padding on top and bottom
   const contentInnerWidth = renderWidth - (horizontalPadding * 2) // Actual text area width
   
   console.log('📏 Content padding:', {
+    isLetterSize,
     horizontalPadding,
     verticalPadding,
     renderWidth,
