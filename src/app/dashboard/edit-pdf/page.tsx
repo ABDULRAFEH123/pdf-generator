@@ -1,78 +1,105 @@
 'use client'
 
-// Force dynamic rendering - do not prerender this page
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
-import { getPreset } from '@/lib/presets'
 import { toast } from 'react-hot-toast'
 import PDFEditor from '@/components/PDFEditor'
-import { usePDFGenerationV2 } from '@/hooks/usePDFGenerationV2'
 import '@/components/PDFPreview.css'
+import { generatePDFFromHTML } from '@/lib/htmlToPdf'
 
-interface PresetWithSize {
+interface PDFData {
   id: string
-  name: string
-  header_image_url: string
-  footer_image_url: string
-  header_height: number
-  footer_height: number
-  pdf_sizes: {
+  content: string
+  pdf_name: string
+  presets: {
+    id: string
     name: string
-    width: number
-    height: number
+    header_image_url: string
+    footer_image_url: string
+    header_height: number
+    footer_height: number
+    pdf_sizes: {
+      name: string
+      width: number
+      height: number
+    }
   }
 }
 
 type ViewMode = 'editor' | 'preview'
 
-function CreatePDFContent() {
+function EditPDFContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
-  const [preset, setPreset] = useState<PresetWithSize | null>(null)
+  const [pdfData, setPdfData] = useState<PDFData | null>(null)
   const [content, setContent] = useState('')
   const [pdfName, setPdfName] = useState('')
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('editor')
-  const previewContainerRef = useRef<HTMLDivElement>(null)
   const [zoomLevel, setZoomLevel] = useState(59)
-  const generatePDFMutation = usePDFGenerationV2()
-
-  const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 10, 200))
-  const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 10, 25))
-  const handleZoomReset = () => setZoomLevel(59)
+  const previewContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const presetId = searchParams.get('presetId')
+    const pdfId = searchParams.get('id')
     
     if (authLoading) return
     
-    if (presetId && user) {
-      loadPreset(presetId)
+    if (pdfId && user) {
+      loadPDF(pdfId)
     } else if (!authLoading) {
       router.push('/dashboard')
     }
   }, [searchParams, user, authLoading, router])
 
-
-  const loadPreset = async (presetId: string) => {
+  const loadPDF = async (pdfId: string) => {
     try {
-      const { data, error } = await getPreset(presetId)
+      const response = await fetch(`/api/pdf/${pdfId}`)
+      const result = await response.json()
       
-      if (error || !data) {
-        console.error('Failed to load preset:', error || 'No data returned')
-        toast.error(`Failed to load preset: ${error || 'Preset not found'}`)
+      if (!response.ok || !result.data) {
+        console.error('Failed to load PDF:', result.error)
+        toast.error('Failed to load PDF')
         router.push('/dashboard')
         return
       }
       
-      setPreset(data)
-      setPdfName(`PDF - ${data.name}`)
+      const data = result.data
+      
+      // Handle Supabase returning relations as arrays or objects
+      const presetData = Array.isArray(data.presets) ? data.presets[0] : data.presets
+      if (!presetData || !presetData.pdf_sizes) {
+        console.error('Failed to load PDF: Missing preset or pdf_sizes data')
+        toast.error('Failed to load PDF')
+        router.push('/dashboard')
+        return
+      }
+      
+      // Normalize the data structure
+      const pdfSizes = Array.isArray(presetData.pdf_sizes) ? presetData.pdf_sizes[0] : presetData.pdf_sizes
+      const normalizedData = {
+        ...data,
+        presets: {
+          ...presetData,
+          pdf_sizes: pdfSizes
+        }
+      }
+      
+      setPdfData(normalizedData as PDFData)
+      
+      // Debug: Log the original content from database
+      console.log('📥 Original content from database:', data.content.substring(0, 500))
+      console.log('📥 Content has ql-font classes:', data.content.includes('ql-font-'))
+      console.log('📥 Content has style attributes:', data.content.includes('style='))
+      
+      setContent(data.content)
+      setPdfName(data.pdf_name || '')
     } catch (error) {
-      console.error('Unexpected error loading preset:', error)
+      console.error('Unexpected error loading PDF:', error)
       toast.error('An unexpected error occurred')
       router.push('/dashboard')
     } finally {
@@ -80,31 +107,79 @@ function CreatePDFContent() {
     }
   }
 
-  const handleGeneratePDF = async () => {
-    if (!content.trim()) {
-      toast.error('Please add some content to your PDF')
+  const handleSave = async () => {
+    console.log("clicked")
+    if (!content.trim() || !pdfData) {
+      toast.error('Please add some content')
       return
     }
 
-    if (!preset || !user) return
+    setSaving(true)
+    console.log("saved")
+    try {
+      console.log("try")
+      const preset = pdfData.presets
+      const finalPdfName = pdfName.trim() || preset.name
 
-    generatePDFMutation.mutate({
-      presetId: preset.id,
-      content,
-      userId: user.id,
-      pdfName: pdfName.trim() || `PDF - ${preset.name}`,
-      headerImageUrl: preset.header_image_url,
-      footerImageUrl: preset.footer_image_url,
-      headerHeight: preset.header_height,
-      footerHeight: preset.footer_height,
-      pdfWidth: preset.pdf_sizes.width,
-      pdfHeight: preset.pdf_sizes.height
-    }, {
-      onSuccess: () => {
-        router.push('/dashboard')
+      // Debug: Log the content HTML to verify formatting is present
+      console.log('📝 Content HTML being saved:', content.substring(0, 500))
+      console.log('📝 Content contains ql-font classes:', content.includes('ql-font-'))
+      console.log('📝 Content contains style attributes:', content.includes('style='))
+
+      // Step 1: Regenerate PDF with html2canvas to preserve formatting
+      console.log('📄 Regenerating PDF with html2canvas...')
+      console.log('📄 Preset dimensions:', {
+        width: preset.pdf_sizes.width,
+        height: preset.pdf_sizes.height,
+        headerHeight: preset.header_height,
+        footerHeight: preset.footer_height
+      })
+      
+      const pdfBlob = await generatePDFFromHTML({
+        content,
+        headerImageUrl: preset.header_image_url,
+        footerImageUrl: preset.footer_image_url,
+        headerHeight: preset.header_height,
+        footerHeight: preset.footer_height,
+        pdfWidth: preset.pdf_sizes.width,
+        pdfHeight: preset.pdf_sizes.height,
+        pdfName: finalPdfName
+      })
+      console.log('✅ PDF regenerated, size:', pdfBlob.size)
+
+      // Step 2: Upload the regenerated PDF
+      const formData = new FormData()
+      formData.append('pdf', pdfBlob, `${finalPdfName}.pdf`)
+      formData.append('pdfId', pdfData.id) // Pass existing PDF ID for update
+      formData.append('content', content)
+      formData.append('pdfName', finalPdfName)
+
+      console.log('📤 Uploading regenerated PDF...')
+      const uploadResponse = await fetch('/api/pdf/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const uploadResult = await uploadResponse.json()
+      
+      if (!uploadResponse.ok) {
+        throw new Error(uploadResult.error || 'Failed to upload PDF')
       }
-    })
+
+      console.log('✅ PDF updated successfully')
+      toast.success('PDF updated successfully!')
+      router.push('/dashboard')
+    } catch (error) {
+      console.error('Save error:', error)
+      toast.error('Failed to save PDF')
+    } finally {
+      setSaving(false)
+    }
   }
+
+  const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 10, 200))
+  const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 10, 25))
+  const handleZoomReset = () => setZoomLevel(59)
 
   if (authLoading || loading) {
     return (
@@ -117,11 +192,12 @@ function CreatePDFContent() {
     )
   }
 
-  if (!preset) return null
+  if (!pdfData) return null
 
+  const preset = pdfData.presets
+  
   // Calculate preview dimensions (matching htmlToPdf.ts exactly)
-  // htmlToPdf.ts uses renderWidth=800 and applies padding DIRECTLY (not scaled)
-  const baseWidth = 800 // Same as htmlToPdf.ts renderWidth
+  const baseWidth = 800
   const aspectRatio = preset.pdf_sizes.height / preset.pdf_sizes.width
   const baseHeight = baseWidth * aspectRatio
   const scaleFactor = baseWidth / preset.pdf_sizes.width
@@ -134,6 +210,8 @@ function CreatePDFContent() {
   const isLetterSize = preset.pdf_sizes.width === 2550 && preset.pdf_sizes.height === 3300
   const horizontalPadding = isLetterSize ? 100 : 60 // Direct px at 800px width
   const verticalPadding = 15 // Direct px at 800px width
+
+  const zoomScale = zoomLevel / 100
   
   // Calculate usable content height per page (excluding padding)
   const usableContentHeight = scaledContentHeight - (verticalPadding * 2)
@@ -154,7 +232,7 @@ function CreatePDFContent() {
           </button>
           <div className="h-6 w-px bg-gray-300"></div>
           <div>
-            <h1 className="text-lg font-semibold text-gray-900">{preset.name}</h1>
+            <h1 className="text-lg font-semibold text-gray-900">Edit: {pdfName || preset.name}</h1>
             <p className="text-xs text-gray-500">
               {preset.pdf_sizes.name} • {preset.pdf_sizes.width} × {preset.pdf_sizes.height}px
             </p>
@@ -166,28 +244,17 @@ function CreatePDFContent() {
           <button
             onClick={() => setViewMode('editor')}
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              viewMode === 'editor' 
-                ? 'bg-white text-gray-900 shadow-sm' 
-                : 'text-gray-600 hover:text-gray-900'
+              viewMode === 'editor' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
             Editor
           </button>
           <button
             onClick={() => setViewMode('preview')}
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              viewMode === 'preview' 
-                ? 'bg-white text-gray-900 shadow-sm' 
-                : 'text-gray-600 hover:text-gray-900'
+              viewMode === 'preview' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
             Preview
           </button>
         </div>
@@ -201,11 +268,11 @@ function CreatePDFContent() {
             Cancel
           </button>
           <button
-            onClick={handleGeneratePDF}
-            disabled={generatePDFMutation.isPending || !content.trim()}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            onClick={handleSave}
+            disabled={saving || !content.trim()}
+            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {generatePDFMutation.isPending ? 'Generating...' : 'Generate PDF'}
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </div>
@@ -226,7 +293,7 @@ function CreatePDFContent() {
                       type="text"
                       value={pdfName}
                       onChange={(e) => setPdfName(e.target.value)}
-                      placeholder={`PDF - ${preset.name}`}
+                      placeholder={preset.name}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                     />
                   </div>
@@ -300,9 +367,9 @@ function CreatePDFContent() {
                 style={{
                   width: `${baseWidth}px`,
                   minHeight: `${baseHeight}px`,
-                  transform: `scale(${zoomLevel / 100})`,
+                  transform: `scale(${zoomScale})`,
                   transformOrigin: 'top center',
-                  marginBottom: `${baseHeight * (zoomLevel / 100 - 1)}px`
+                  marginBottom: `${baseHeight * (zoomScale - 1)}px`
                 }}
               >
                 {/* Header */}
@@ -311,11 +378,7 @@ function CreatePDFContent() {
                   style={{ height: `${scaledHeaderHeight}px` }}
                 >
                   {preset.header_image_url ? (
-                    <img 
-                      src={preset.header_image_url} 
-                      alt="Header" 
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={preset.header_image_url} alt="Header" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-gray-500 text-sm">Header Image ({preset.header_height}px)</span>
                   )}
@@ -332,16 +395,10 @@ function CreatePDFContent() {
                   {content ? (
                     <div 
                       className="pdf-preview-content"
-                      style={{
-                        fontSize: '14px',
-                        lineHeight: 1.5,
-                        fontFamily: 'Arial, sans-serif'
-                      }}
+                      style={{ fontSize: '14px', lineHeight: 1.5, fontFamily: 'Arial, sans-serif' }}
                       dangerouslySetInnerHTML={{ __html: content }}
                       ref={(el) => {
                         if (!el || typeof document === 'undefined') return
-                        
-                        // Fix list types based on data-list attribute
                         el.querySelectorAll('ol').forEach((ol) => {
                           const firstLi = ol.querySelector('li')
                           if (firstLi && firstLi.getAttribute('data-list') === 'bullet') {
@@ -350,7 +407,6 @@ function CreatePDFContent() {
                             ol.replaceWith(ul)
                           }
                         })
-                        
                         el.querySelectorAll('ul').forEach((ul) => {
                           const firstLi = ul.querySelector('li')
                           if (firstLi && firstLi.getAttribute('data-list') === 'ordered') {
@@ -362,9 +418,7 @@ function CreatePDFContent() {
                       }}
                     />
                   ) : (
-                    <div className="text-gray-400 text-center py-8">
-                      Your content will appear here...
-                    </div>
+                    <div className="text-gray-400 text-center py-8">Your content will appear here...</div>
                   )}
                 </div>
 
@@ -374,11 +428,7 @@ function CreatePDFContent() {
                   style={{ height: `${scaledFooterHeight}px` }}
                 >
                   {preset.footer_image_url ? (
-                    <img 
-                      src={preset.footer_image_url} 
-                      alt="Footer" 
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={preset.footer_image_url} alt="Footer" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-gray-500 text-sm">Footer Image ({preset.footer_height}px)</span>
                   )}
@@ -393,9 +443,7 @@ function CreatePDFContent() {
                 <span>•</span>
                 <span>Padding: {horizontalPadding}px</span>
               </div>
-              <div className="text-gray-400">
-                Pixel-perfect preview matching PDF output
-              </div>
+              <div className="text-gray-400">Pixel-perfect preview</div>
             </div>
           </div>
         )}
@@ -404,17 +452,14 @@ function CreatePDFContent() {
   )
 }
 
-export default function CreatePDFPage() {
+export default function EditPDFPage() {
   return (
     <Suspense fallback={
       <div className="h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
       </div>
     }>
-      <CreatePDFContent />
+      <EditPDFContent />
     </Suspense>
   )
 }

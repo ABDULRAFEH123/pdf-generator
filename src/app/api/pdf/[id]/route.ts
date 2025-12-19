@@ -1,6 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'PDF ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Get the PDF document with preset and pdf_sizes
+    const { data, error } = await supabaseAdmin
+      .from('pdf_documents')
+      .select(`
+        id,
+        content,
+        created_at,
+        pdf_name,
+        presets (
+          id,
+          name,
+          header_image_url,
+          footer_image_url,
+          header_height,
+          footer_height,
+          pdf_sizes (
+            name,
+            width,
+            height
+          )
+        )
+      `)
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      console.error('Error fetching PDF:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch PDF' },
+        { status: 500 }
+      )
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { error: 'PDF not found' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ data }, { status: 200 })
+  } catch (error) {
+    console.error('Error fetching PDF:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch PDF' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

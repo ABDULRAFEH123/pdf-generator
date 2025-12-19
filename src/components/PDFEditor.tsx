@@ -160,10 +160,10 @@ export default function PDFEditor({
 
     // Clean up the HTML but PRESERVE font-related styles and classes
     let cleanedHtml = html
-      // Keep ql-align-, ql-font- classes (font family classes)
+      // Keep ql-align-, ql-font-, ql-indent- classes
       .replace(/class="([^"]*)"/g, (match, classes) => {
         const keepClasses = classes.split(' ').filter((c: string) =>
-          c.startsWith('ql-align-') || c.startsWith('ql-font-')
+          c.startsWith('ql-align-') || c.startsWith('ql-font-') || c.startsWith('ql-indent-')
         )
         if (keepClasses.length > 0) {
           console.log('✅ Keeping classes:', keepClasses.join(' '))
@@ -206,6 +206,8 @@ export default function PDFEditor({
     const cleanedHasFontClass = /class="[^"]*ql-font-[^"]*"/.test(cleanedHtml)
     const cleanedHasFontStyle = /style="[^"]*font-family:[^"]*"/.test(cleanedHtml)
 
+    // Debug: Log when onChange is called
+    console.log('🔵 PDFEditor onChange called, cleanedHtml length:', cleanedHtml.length)
     onChange?.(cleanedHtml)
   }
 
@@ -410,7 +412,7 @@ export default function PDFEditor({
 
   return (
     <div
-      className="border border-gray-300 rounded-md flex flex-col"
+      className=" rounded-md flex flex-col"
       style={{ height: '500px' }}
       onKeyDown={(e) => {
         console.log('🎹 PDFEditor Container KeyDown:', {
@@ -438,7 +440,7 @@ export default function PDFEditor({
           font-family: system-ui, -apple-system, sans-serif;
           overflow-y: auto;
           flex: 1;
-          padding: 12px 15px;
+          padding: 20px 20px 40px 20px;
         }
         
         .ql-container {

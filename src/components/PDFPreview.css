@@ -1,12 +1,13 @@
-/* PDF Preview Styles - Scaled down version of actual PDF styling */
+/* PDF Preview Styles - Pixel-perfect preview matching actual PDF output */
+/* Font size and padding are now set dynamically via inline styles to match PDF exactly */
 .pdf-preview-content {
-  font-size: 9px;
-  line-height: 1.4;
+  /* font-size set via inline style based on scaleFactor */
+  /* padding set via parent container inline style */
+  line-height: 1.5; /* Match htmlToPdf.ts line-height */
   color: #000;
-  font-family: 'system-ui', -apple-system, sans-serif;
+  font-family: Arial, sans-serif; /* Match htmlToPdf.ts font-family */
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 4px 30px;
 }
 
 /* Reset any default margins for cleaner preview */
@@ -17,46 +18,56 @@
 
 /* Spans with inline font-size - keep inline for normal text flow */
 .pdf-preview-content span[style*="font-size"] {
-  line-height: 1.4;
+  line-height: inherit;
 }
 
 .pdf-preview-content p {
-  line-height: 1.4;
+  line-height: inherit;
+  margin: 0 0 0.5em 0; /* Match htmlToPdf.ts paragraph margin */
+  min-height: 1.5em; /* Preserve empty paragraph height */
 }
 
-/* Headings */
+/* Preserve empty paragraphs - Quill creates <p><br></p> for empty lines */
+.pdf-preview-content p:empty,
+.pdf-preview-content p br:only-child {
+  display: block;
+  min-height: 1.5em;
+}
+
+.pdf-preview-content br {
+  display: block;
+  content: "";
+  margin-top: 0;
+}
+
+/* Headings - use em units so they scale with the dynamic font-size */
 .pdf-preview-content h1 {
-  font-size: 14px !important;
+  font-size: 2em !important; /* Match htmlToPdf.ts: 2em */
   font-weight: bold !important;
-  margin: 4px 0 !important;
+  margin: 0 0 0.5em 0 !important;
   line-height: 1.2 !important;
   color: #000 !important;
   display: block !important;
 }
 
 .pdf-preview-content h2 {
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  margin: 3px 0 !important;
+  font-size: 1.5em !important; /* Match htmlToPdf.ts: 1.5em */
+  font-weight: bold !important;
+  margin: 0 0 0.5em 0 !important;
   line-height: 1.2 !important;
   color: #000 !important;
   display: block !important;
 }
 
 .pdf-preview-content h3 {
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  margin: 3px 0 !important;
+  font-size: 1.17em !important; /* Match htmlToPdf.ts: 1.17em */
+  font-weight: bold !important;
+  margin: 0 0 0.5em 0 !important;
   line-height: 1.2 !important;
   color: #000 !important;
   display: block !important;
 }
 
-/* Paragraphs */
-.pdf-preview-content p {
-  margin: 2px 0;
-  line-height: 1.3;
-}
 
 /* Text formatting */
 .pdf-preview-content strong,
@@ -76,27 +87,27 @@
   color: #000 !important;
 }
 
-/* Lists */
+/* Lists - use em units to scale with dynamic font-size */
 .pdf-preview-content ul {
-  margin: 6px 0 !important;
-  padding-left: 20px !important;
+  margin: 0 0 0.5em 0 !important; /* Match htmlToPdf.ts */
+  padding-left: 2em !important; /* Match htmlToPdf.ts */
   list-style-type: disc !important;
   list-style-position: outside !important;
   display: block !important;
 }
 
 .pdf-preview-content ol {
-  margin: 6px 0 !important;
-  padding-left: 20px !important;
+  margin: 0 0 0.5em 0 !important; /* Match htmlToPdf.ts */
+  padding-left: 2em !important; /* Match htmlToPdf.ts */
   list-style-type: decimal !important;
   list-style-position: outside !important;
   display: block !important;
 }
 
 .pdf-preview-content li {
-  margin: 2px 0 !important;
-  padding-left: 4px !important;
-  line-height: 1.5 !important;
+  margin: 0.25em 0 !important; /* Match htmlToPdf.ts */
+  padding-left: 0.3em !important; /* Match htmlToPdf.ts */
+  line-height: 1.6 !important; /* Match htmlToPdf.ts */
   display: list-item !important;
   position: relative !important;
 }

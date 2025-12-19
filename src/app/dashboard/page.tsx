@@ -101,7 +101,8 @@ export default function DashboardPage() {
   }
 
   const handleCreatePDF = (preset: PresetWithSize) => {
-    setSelectedPreset(preset)
+    // Navigate to full-page PDF editor with preset
+    router.push(`/dashboard/create-pdf?presetId=${preset.id}`)
   }
 
   const handleCloseModal = () => {

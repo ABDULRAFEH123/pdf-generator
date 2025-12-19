@@ -5,6 +5,7 @@ import { usePDFGenerationV2 } from '@/hooks/usePDFGenerationV2'
 import { toast } from 'react-hot-toast'
 import PDFEditor from '@/components/PDFEditor'
 import PDFPreviewModal from '@/components/PDFPreviewModal'
+import { generatePDFFromHTML } from '@/lib/htmlToPdf'
 import './PDFPreview.css'
 
 interface PDFCreationModalProps {
@@ -38,6 +39,24 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
   const [saving, setSaving] = useState(false)
   const generatePDFMutation = usePDFGenerationV2()
 
+  // Calculate pixel-perfect preview dimensions based on actual PDF size
+  // This ensures WYSIWYG - what you see in preview is what you get in PDF
+  const PREVIEW_WIDTH = 350 // Fixed preview width in pixels
+  const pdfAspectRatio = preset.pdf_sizes.height / preset.pdf_sizes.width
+  const previewHeight = PREVIEW_WIDTH * pdfAspectRatio
+  const scaleFactor = PREVIEW_WIDTH / preset.pdf_sizes.width
+  
+  // Scale header/footer heights proportionally
+  const scaledHeaderHeight = preset.header_height * scaleFactor
+  const scaledFooterHeight = preset.footer_height * scaleFactor
+  const scaledContentHeight = previewHeight - scaledHeaderHeight - scaledFooterHeight
+  
+  // Match padding from htmlToPdf.ts - Letter size gets extra padding
+  const isLetterSize = preset.pdf_sizes.width === 2550 && preset.pdf_sizes.height === 3300
+  const basePadding = isLetterSize ? 100 : 60 // Same as htmlToPdf.ts
+  const scaledHorizontalPadding = basePadding * scaleFactor
+  const scaledVerticalPadding = 15 * scaleFactor // 15px vertical padding from htmlToPdf.ts
+
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -62,24 +81,45 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
     }
 
     if (isEditMode && pdfId) {
-      // Update existing PDF
+      // Update existing PDF - regenerate with html2canvas to preserve formatting
       setSaving(true)
       try {
-        const response = await fetch(`/api/pdf/${pdfId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            content,
-            pdfName: pdfName.trim() || undefined 
-          }),
+        const finalPdfName = pdfName.trim() || `PDF - ${preset.name}`
+        
+        // Step 1: Regenerate PDF with html2canvas to preserve formatting
+        console.log('📄 PDFCreationModal: Regenerating PDF with html2canvas...')
+        const pdfBlob = await generatePDFFromHTML({
+          content,
+          headerImageUrl: preset.header_image_url,
+          footerImageUrl: preset.footer_image_url,
+          headerHeight: preset.header_height,
+          footerHeight: preset.footer_height,
+          pdfWidth: preset.pdf_sizes.width,
+          pdfHeight: preset.pdf_sizes.height,
+          pdfName: finalPdfName
+        })
+        console.log('✅ PDF regenerated, size:', pdfBlob.size)
+
+        // Step 2: Upload the regenerated PDF
+        const formData = new FormData()
+        formData.append('pdf', pdfBlob, `${finalPdfName}.pdf`)
+        formData.append('pdfId', pdfId) // Pass existing PDF ID for update
+        formData.append('content', content)
+        formData.append('pdfName', finalPdfName)
+
+        console.log('📤 Uploading regenerated PDF...')
+        const uploadResponse = await fetch('/api/pdf/upload', {
+          method: 'POST',
+          body: formData,
         })
 
-        if (!response.ok) {
-          throw new Error('Failed to update PDF')
+        const uploadResult = await uploadResponse.json()
+        
+        if (!uploadResponse.ok) {
+          throw new Error(uploadResult.error || 'Failed to upload PDF')
         }
 
+        console.log('✅ PDF updated successfully')
         toast.success('PDF updated successfully!')
         onClose()
         // Reload the page to refresh the PDF list
@@ -187,24 +227,23 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
 
             {/* Right Side - Live Preview */}
             <div className="space-y-4">
-              <h4 className="text-sm font-medium text-gray-700">Live Preview</h4>
-              <div className="border border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm">
-                {/* PDF Preview Container */}
+              <h4 className="text-sm font-medium text-gray-700">Live Preview <span className="text-xs text-gray-400">(Pixel-perfect)</span></h4>
+              <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-100 shadow-sm flex items-center justify-center p-4">
+                {/* PDF Preview Container - Exact aspect ratio */}
                 <div 
-                  className="relative mx-auto bg-white"
+                  className="relative bg-white shadow-lg"
                   style={{ 
-                    width: '300px', 
-                    height: '400px',
-                    transform: 'scale(0.8)',
-                    transformOrigin: 'top left'
+                    width: `${PREVIEW_WIDTH}px`, 
+                    height: `${previewHeight}px`,
+                    border: '1px solid #e5e7eb'
                   }}
                 >
                   {/* Header Image */}
                   <div 
                     className="absolute top-0 left-0 bg-gray-100 flex items-center justify-center overflow-hidden"
                     style={{ 
-                      width: '375px', 
-                      height: `${(preset.header_height / preset.pdf_sizes.width) * 375}px` 
+                      width: `${PREVIEW_WIDTH}px`, 
+                      height: `${scaledHeaderHeight}px` 
                     }}
                   >
                     {preset.header_image_url ? (
@@ -219,38 +258,37 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
                         }}
                       />
                     ) : null}
-                    <div className="absolute inset-0 bg-gray-100 flex items-center justify-center" style={{ display: preset.header_image_url ? 'none' : 'flex' }}>
-                    <span className="text-xs text-gray-500">Header Image</span>
+                    <div className="absolute inset-0 bg-gray-200 flex items-center justify-center" style={{ display: preset.header_image_url ? 'none' : 'flex' }}>
+                      <span className="text-xs text-gray-500">Header ({preset.header_height}px)</span>
+                    </div>
                   </div>
-                </div>
 
-                  {/* Content Area */}
+                  {/* Content Area - Matching exact padding from PDF generation */}
                   <div 
-                    className="absolute left-0 bg-white p-2 overflow-y-auto"
+                    className="absolute left-0 bg-white overflow-y-auto"
                     style={{ 
-                      width: '375px', 
-                      top: `${(preset.header_height / preset.pdf_sizes.width) * 375}px`,
-                      height: `${400 - ((preset.header_height + preset.footer_height) / preset.pdf_sizes.width) * 375}px`
+                      width: `${PREVIEW_WIDTH}px`, 
+                      top: `${scaledHeaderHeight}px`,
+                      height: `${scaledContentHeight}px`,
+                      padding: `${scaledVerticalPadding}px ${scaledHorizontalPadding}px`
                     }}
                   >
                     {content ? (
                       <div 
                         className="pdf-preview-content"
+                        style={{
+                          // Scale font size proportionally for preview
+                          fontSize: `${14 * scaleFactor}px`,
+                          lineHeight: 1.5
+                        }}
                         dangerouslySetInnerHTML={{ __html: content }}
                         ref={(el) => {
-                          // This ref runs only in the browser, but add an explicit guard for safety
                           if (!el || typeof document === 'undefined' || typeof window === 'undefined') return
-
-                          console.log('\n=== 📺 PREVIEW RENDER DEBUG ===')
-                          console.log('Preview innerHTML:', el.innerHTML.substring(0, 300))
-                          console.log('Preview full HTML:', el.innerHTML)
-                          console.log('List items in preview:', el.querySelectorAll('li').length)
                           
                           // FIX: Convert OL to UL when data-list="bullet" and vice versa
                           el.querySelectorAll('ol').forEach((ol) => {
                             const firstLi = ol.querySelector('li')
                             if (firstLi && firstLi.getAttribute('data-list') === 'bullet') {
-                              console.log('🔧 Converting OL to UL (has bullet data-list)')
                               const ul = document.createElement('ul')
                               ul.innerHTML = ol.innerHTML
                               ol.replaceWith(ul)
@@ -260,37 +298,26 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
                           el.querySelectorAll('ul').forEach((ul) => {
                             const firstLi = ul.querySelector('li')
                             if (firstLi && firstLi.getAttribute('data-list') === 'ordered') {
-                              console.log('🔧 Converting UL to OL (has ordered data-list)')
                               const ol = document.createElement('ol')
                               ol.innerHTML = ul.innerHTML
                               ul.replaceWith(ol)
                             }
                           })
-                          
-                          el.querySelectorAll('li').forEach((li, i) => {
-                            console.log(`Li ${i}:`, {
-                              'data-list': li.getAttribute('data-list'),
-                              'parent tag': li.parentElement?.tagName,
-                              'computed list-style-type': window.getComputedStyle(li).listStyleType,
-                              'text': li.textContent?.substring(0, 50)
-                            })
-                          })
-                          console.log('=== END PREVIEW DEBUG ===\n')
                         }}
                       />
                     ) : (
-                      <div className="text-xs text-gray-400 italic">
+                      <div className="text-xs text-gray-400 italic text-center mt-4">
                         Your content will appear here...
                       </div>
                     )}
-                </div>
+                  </div>
 
                   {/* Footer Image */}
                   <div 
                     className="absolute bottom-0 left-0 bg-gray-100 flex items-center justify-center overflow-hidden"
                     style={{ 
-                      width: '375px', 
-                      height: `${(preset.footer_height / preset.pdf_sizes.width) * 375}px` 
+                      width: `${PREVIEW_WIDTH}px`, 
+                      height: `${scaledFooterHeight}px` 
                     }}
                   >
                     {preset.footer_image_url ? (
@@ -305,20 +332,22 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
                         }}
                       />
                     ) : null}
-                    <div className="absolute inset-0 bg-gray-100 flex items-center justify-center" style={{ display: preset.footer_image_url ? 'none' : 'flex' }}>
-                    <span className="text-xs text-gray-500">Footer Image</span>
+                    <div className="absolute inset-0 bg-gray-200 flex items-center justify-center" style={{ display: preset.footer_image_url ? 'none' : 'flex' }}>
+                      <span className="text-xs text-gray-500">Footer ({preset.footer_height}px)</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
               {/* PDF Info */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <h5 className="text-sm font-medium text-gray-900 mb-2">PDF Details</h5>
                 <div className="space-y-1 text-xs text-gray-600">
-                  <div>Size: {preset.pdf_sizes.name} ({preset.pdf_sizes.width} × {preset.pdf_sizes.height}px)</div>
-                  <div>Header: {preset.header_height}px height</div>
-                  <div>Footer: {preset.footer_height}px height</div>
+                  <div><strong>Size:</strong> {preset.pdf_sizes.name} ({preset.pdf_sizes.width} × {preset.pdf_sizes.height}px)</div>
+                  <div><strong>Aspect Ratio:</strong> {pdfAspectRatio.toFixed(3)}</div>
+                  <div><strong>Header:</strong> {preset.header_height}px height</div>
+                  <div><strong>Footer:</strong> {preset.footer_height}px height</div>
+                  <div><strong>Content Padding:</strong> {basePadding}px horizontal{isLetterSize ? ' (Letter size)' : ''}</div>
                 </div>
               </div>
             </div>

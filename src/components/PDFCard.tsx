@@ -1,11 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import ConfirmationModal from './ConfirmationModal'
-import PDFCreationModal from './PDFCreationModal'
-import PDFPreviewModal from './PDFPreviewModal'
 
 interface PDFCardProps {
   pdf: {
@@ -30,11 +28,10 @@ interface PDFCardProps {
 }
 
 export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
+  const router = useRouter()
   const [downloading, setDownloading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showPreviewModal, setShowPreviewModal] = useState(false)
 
   const handleDownload = async () => {
     setDownloading(true)
@@ -222,7 +219,7 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
           {/* Edit and Preview Buttons */}
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => setShowEditModal(true)}
+              onClick={() => router.push(`/dashboard/edit-pdf?id=${pdf.id}`)}
               className="inline-flex items-center justify-center px-4 py-2.5 border border-green-300 text-sm font-medium rounded-xl text-green-700 bg-green-50 hover:bg-green-100 hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 shadow-sm hover:shadow-md"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -231,7 +228,7 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
               Edit
             </button>
             <button
-              onClick={() => setShowPreviewModal(true)}
+              onClick={() => router.push(`/dashboard/preview-pdf?id=${pdf.id}`)}
               className="inline-flex items-center justify-center px-4 py-2.5 border border-blue-300 text-sm font-medium rounded-xl text-blue-700 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -306,45 +303,6 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
         isLoading={deleting}
         type="danger"
       />
-
-      {/* Edit Modal - Render at document body level using portal */}
-      {showEditModal && typeof document !== 'undefined' && createPortal(
-        <PDFCreationModal
-          preset={{
-            id: pdf.presets.name,
-            name: pdf.presets.name,
-            header_image_url: pdf.presets.header_image_url,
-            footer_image_url: pdf.presets.footer_image_url,
-            header_height: pdf.presets.header_height,
-            footer_height: pdf.presets.footer_height,
-            pdf_sizes: pdf.presets.pdf_sizes
-          }}
-          onClose={() => setShowEditModal(false)}
-          userId={undefined}
-          initialContent={pdf.content}
-          initialPdfName={pdf.pdf_name || ''}
-          pdfId={pdf.id}
-          isEditMode={true}
-        />,
-        document.body
-      )}
-
-      {/* Preview Modal - Render at document body level using portal */}
-      {showPreviewModal && typeof document !== 'undefined' && createPortal(
-        <PDFPreviewModal
-          content={pdf.content}
-          presetName={pdf.pdf_name || pdf.presets.name}
-          preset={{
-            header_image_url: pdf.presets.header_image_url,
-            footer_image_url: pdf.presets.footer_image_url,
-            header_height: pdf.presets.header_height,
-            footer_height: pdf.presets.footer_height,
-            pdf_sizes: pdf.presets.pdf_sizes
-          }}
-          onClose={() => setShowPreviewModal(false)}
-        />,
-        document.body
-      )}
     </div>
   )
 }

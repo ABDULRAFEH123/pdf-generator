@@ -462,6 +462,18 @@ function getContentStyles(): string {
     .pdf-content-area p {
       margin: 0 0 0.5em 0;
       line-height: inherit;
+      min-height: 1.5em;
+    }
+    /* Preserve empty paragraphs - Quill creates <p><br></p> for empty lines */
+    .pdf-content-area p:empty,
+    .pdf-content-area p br:only-child {
+      display: block;
+      min-height: 1.5em;
+    }
+    .pdf-content-area br {
+      display: block;
+      content: "";
+      margin-top: 0;
     }
     .pdf-content-area h1 {
       font-size: 2em;
@@ -557,14 +569,56 @@ function getContentStyles(): string {
       padding: 0.2em 0.4em;
       border-radius: 3px;
     }
+    
+    /* Quill Font Family Classes - must match PDFEditor.tsx whitelist */
+    .pdf-content-area .ql-font-sans-serif { font-family: Arial, Helvetica, sans-serif; }
+    .pdf-content-area .ql-font-times-new-roman { font-family: 'Times New Roman', Times, serif; }
+    .pdf-content-area .ql-font-courier-new { font-family: 'Courier New', Courier, monospace; }
+    .pdf-content-area .ql-font-impact { font-family: Impact, Charcoal, sans-serif; }
+    .pdf-content-area .ql-font-robotoserif { font-family: 'Roboto Serif', Georgia, serif; }
+    .pdf-content-area .ql-font-verdana { font-family: Verdana, Geneva, sans-serif; }
+    .pdf-content-area .ql-font-opensans { font-family: 'Open Sans', Arial, sans-serif; }
+    .pdf-content-area .ql-font-lato { font-family: Lato, 'Helvetica Neue', sans-serif; }
+    .pdf-content-area .ql-font-robotomono { font-family: 'Roboto Mono', 'Courier New', monospace; }
+    .pdf-content-area .ql-font-georgia { font-family: Georgia, 'Times New Roman', serif; }
+    .pdf-content-area .ql-font-cambria { font-family: Cambria, Georgia, serif; }
+    .pdf-content-area .ql-font-garamond { font-family: Garamond, 'Times New Roman', serif; }
+    .pdf-content-area .ql-font-arial { font-family: Arial, Helvetica, sans-serif; }
+    .pdf-content-area .ql-font-calibri { font-family: Calibri, 'Segoe UI', sans-serif; }
+    
+    /* Quill Indent Classes */
     .pdf-content-area .ql-indent-1 { padding-left: 3em; }
     .pdf-content-area .ql-indent-2 { padding-left: 6em; }
     .pdf-content-area .ql-indent-3 { padding-left: 9em; }
     .pdf-content-area .ql-indent-4 { padding-left: 12em; }
     .pdf-content-area .ql-indent-5 { padding-left: 15em; }
+    
+    /* Quill Alignment Classes */
     .pdf-content-area .ql-align-center { text-align: center; }
     .pdf-content-area .ql-align-right { text-align: right; }
     .pdf-content-area .ql-align-justify { text-align: justify; }
+    
+    /* Quill Color Classes - common colors */
+    .pdf-content-area .ql-color-red { color: red; }
+    .pdf-content-area .ql-color-orange { color: orange; }
+    .pdf-content-area .ql-color-yellow { color: yellow; }
+    .pdf-content-area .ql-color-green { color: green; }
+    .pdf-content-area .ql-color-blue { color: blue; }
+    .pdf-content-area .ql-color-purple { color: purple; }
+    
+    /* Quill Background Color Classes */
+    .pdf-content-area .ql-bg-red { background-color: red; }
+    .pdf-content-area .ql-bg-orange { background-color: orange; }
+    .pdf-content-area .ql-bg-yellow { background-color: yellow; }
+    .pdf-content-area .ql-bg-green { background-color: green; }
+    .pdf-content-area .ql-bg-blue { background-color: blue; }
+    .pdf-content-area .ql-bg-purple { background-color: purple; }
+    
+    /* Ensure inline styles are preserved - Quill uses inline styles for colors and sizes */
+    .pdf-content-area [style] { /* Inline styles take precedence */ }
+    .pdf-content-area span[style*="font-size"] { line-height: 1.4; }
+    .pdf-content-area span[style*="color"] { /* Color from inline style */ }
+    .pdf-content-area span[style*="background"] { padding: 0 2px; }
   `
 }
 
