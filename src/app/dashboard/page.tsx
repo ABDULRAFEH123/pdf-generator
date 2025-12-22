@@ -52,6 +52,7 @@ interface PDFDocument {
 export default function DashboardPage() {
   const { user } = useAuth()
   const router = useRouter()
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
   const [selectedPDFSize, setSelectedPDFSize] = useState<PDFSize | null>(null)
   const [selectedPreset, setSelectedPreset] = useState<PresetWithSize | null>(null)
   const [activeTab, setActiveTab] = useState<string>('all')
@@ -62,6 +63,15 @@ export default function DashboardPage() {
   // Use React Query hooks for data fetching
   const { data: presetsData, isLoading: presetsLoading, error: presetsError, refetch: refetchPresets } = usePresets(user?.id)
   const { data: pdfsData, isLoading: pdfsLoading, error: pdfsError, refetch: refetchPDFs } = usePDFs(user?.id)
+  
+  // Handle refetch from query params (after preset creation)
+  useEffect(() => {
+    if (searchParams?.get('refetch') === 'presets') {
+      refetchPresets()
+      // Clean up URL
+      window.history.replaceState({}, '', '/dashboard')
+    }
+  }, [searchParams, refetchPresets])
 
   const presets = presetsData?.data || []
   const pdfs = pdfsData?.pdfs || []

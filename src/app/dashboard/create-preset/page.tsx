@@ -30,7 +30,8 @@ function CreatePresetContent() {
   }, [searchParams, router])
 
   const handleSuccess = () => {
-    router.push('/dashboard')
+    // Add a flag to trigger refetch on dashboard
+    router.push('/dashboard?refetch=presets')
   }
 
   const handleCancel = () => {
