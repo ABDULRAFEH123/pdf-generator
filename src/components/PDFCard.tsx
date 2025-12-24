@@ -277,7 +277,7 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
             )}
           </div>
           
-          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+          {/* <div className="flex items-center justify-between pt-3 border-t border-gray-100">
             <div className="text-xs text-gray-400 font-mono">
               ID: {pdf.id.substring(0, 8)}...
             </div>
@@ -287,7 +287,7 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
               </svg>
               <span>Generated</span>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
       
