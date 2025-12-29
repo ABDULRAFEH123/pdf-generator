@@ -83,8 +83,11 @@
 }
 
 .pdf-preview-content u {
-  text-decoration: underline !important;
+  text-decoration: none !important;
+  border-bottom: 0.02em solid currentColor !important;
+  padding-bottom: -0.8em !important;
   color: #000 !important;
+  display: inline !important;
 }
 
 /* Lists - use em units to scale with dynamic font-size */

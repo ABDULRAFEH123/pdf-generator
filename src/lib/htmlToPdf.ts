@@ -112,6 +112,210 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
   // Wait for rendering and fonts to load
   await new Promise(resolve => setTimeout(resolve, 150))
   
+  // DEBUG: Log underline (<u>) element styles before canvas capture
+  const underlineElements = contentContainer.querySelectorAll('u')
+  console.log('🔍 UNDERLINE DEBUG: Found', underlineElements.length, 'underline elements')
+  underlineElements.forEach((el, index) => {
+    const computed = window.getComputedStyle(el)
+    const rect = el.getBoundingClientRect()
+    console.log(`🔍 Underline #${index + 1} BEFORE transform:`, {
+      text: el.textContent?.substring(0, 30),
+      display: computed.display,
+      textDecoration: computed.textDecoration,
+      borderBottom: computed.borderBottom,
+      paddingBottom: computed.paddingBottom,
+      lineHeight: computed.lineHeight,
+      fontSize: computed.fontSize,
+      boundingRect: { width: rect.width.toFixed(2), height: rect.height.toFixed(2) },
+      innerHTML: el.outerHTML.substring(0, 200)
+    })
+  })
+  
+  // DEBUG: Log the actual styles being applied
+  const styleEl = contentContainer.querySelector('style')
+  if (styleEl) {
+    const uStyleMatch = styleEl.textContent?.match(/\.pdf-content-area u \{[^}]+\}/)
+    console.log('🔍 Applied <u> CSS rule:', uStyleMatch ? uStyleMatch[0] : 'NOT FOUND')
+  }
+  
+  // WORKAROUND: Transform underline elements to use a structure html2canvas can render better
+  // html2canvas struggles with padding-bottom on inline elements
+  // HYBRID APPROACH:
+  //   - Single-line text: Use DOM wrapper with inline-block + absolute positioned underline bar
+  //   - Multi-line text: Use word-by-word inline-block spans (handles wrapped text)
+  console.log('🔧 Applying underline workaround for html2canvas...')
+  
+  underlineElements.forEach((el, index) => {
+    const htmlEl = el as HTMLElement
+    
+    // Get computed styles to calculate expected single-line height
+    const computed = window.getComputedStyle(htmlEl)
+    const fontSize = parseFloat(computed.fontSize) || 14
+    const lineHeight = parseFloat(computed.lineHeight) || fontSize * 1.5
+    
+    // Scale gap and underline thickness based on font size
+    // For smaller fonts (<=14px): use larger relative gap (4px min)
+    // For larger fonts (>14px): scale proportionally
+    const scaleFactor = fontSize / 14
+    const isSmallFont = fontSize <= 14
+    const gapSize = isSmallFont 
+      ? 4  // Fixed 4px gap for small fonts - gives better readability
+      : Math.round(3 * scaleFactor) // Scale for larger fonts
+    const underlineHeight = Math.max(1, Math.round(1 * scaleFactor)) // min 1px
+    
+    // Single line height = line-height + some tolerance for padding/borders
+    const expectedSingleLineHeight = lineHeight + 10
+    
+    // Get original dimensions to detect single vs multi-line
+    const rectBefore = htmlEl.getBoundingClientRect()
+    const isSingleLine = rectBefore.height <= expectedSingleLineHeight
+    
+    console.log(`🔧 Underline #${index + 1} - Detection:`, {
+      width: rectBefore.width.toFixed(2),
+      height: rectBefore.height.toFixed(2),
+      fontSize: fontSize.toFixed(2),
+      lineHeight: lineHeight.toFixed(2),
+      scaleFactor: scaleFactor.toFixed(2),
+      gapSize,
+      underlineHeight,
+      singleLineThreshold: expectedSingleLineHeight.toFixed(2),
+      isSingleLine
+    })
+    
+    if (isSingleLine) {
+      // SINGLE-LINE: Use DOM wrapper approach (works perfectly for single line)
+      const textContent = htmlEl.innerHTML
+      
+      // IMPORTANT: Preserve font-size from the original element's inline style or computed style
+      const originalFontSize = htmlEl.style.fontSize || computed.fontSize
+      const originalFontWeight = computed.fontWeight
+      const originalColor = computed.color
+      
+      // Create wrapper span (inline-block to contain the absolute positioned underline)
+      const wrapper = document.createElement('span')
+      wrapper.style.cssText = `
+        display: inline-block;
+        position: relative;
+        padding-bottom: ${gapSize}px;
+        line-height: 1.5;
+        font-size: ${originalFontSize};
+        font-weight: ${originalFontWeight};
+        color: ${originalColor};
+      `
+      
+      // Create text span
+      const textSpan = document.createElement('span')
+      textSpan.style.cssText = 'display: inline; font-size: inherit; font-weight: inherit; color: inherit;'
+      textSpan.innerHTML = textContent
+      
+      // Create underline element (absolute positioned at bottom)
+      const underlineBar = document.createElement('span')
+      underlineBar.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: ${underlineHeight}px;
+        background-color: ${originalColor};
+      `
+      
+      // Assemble the structure
+      wrapper.appendChild(textSpan)
+      wrapper.appendChild(underlineBar)
+      
+      // Replace the <u> element's content with the wrapper
+      htmlEl.innerHTML = ''
+      htmlEl.style.cssText = `
+        text-decoration: none;
+        border-bottom: none;
+        padding-bottom: 0;
+        display: inline;
+        font-size: ${originalFontSize};
+      `
+      htmlEl.appendChild(wrapper)
+      
+      // Log after transformation
+      const rectAfter = wrapper.getBoundingClientRect()
+      console.log(`🔧 Underline #${index + 1} SINGLE-LINE transform:`, {
+        text: textSpan.textContent?.substring(0, 30),
+        method: 'DOM wrapper',
+        fontSize: originalFontSize,
+        boundingRect: { width: rectAfter.width.toFixed(2), height: rectAfter.height.toFixed(2) }
+      })
+    } else {
+      // MULTI-LINE: Split text into word-by-word inline-block spans
+      // html2canvas doesn't render border-bottom correctly on wrapped inline elements
+      // Solution: Each word gets its own inline-block wrapper with absolute positioned underline
+      const textContent = htmlEl.textContent || ''
+      const words = textContent.split(/\s+/).filter(w => w.length > 0)
+      
+      // IMPORTANT: Preserve font-size from the original element's inline style or computed style
+      const originalFontSize = htmlEl.style.fontSize || computed.fontSize
+      const originalFontWeight = computed.fontWeight
+      const originalColor = computed.color
+      
+      console.log(`🔧 Underline #${index + 1} MULTI-LINE: Splitting into ${words.length} words, preserving fontSize: ${originalFontSize}`)
+      
+      // Clear the <u> element
+      htmlEl.innerHTML = ''
+      htmlEl.style.cssText = `
+        text-decoration: none;
+        border-bottom: none;
+        padding-bottom: 0;
+        display: inline;
+        font-size: ${originalFontSize};
+      `
+      
+      // Create a word wrapper for each word
+      // Include space INSIDE each wrapper (except last) so underline is continuous
+      words.forEach((word, wordIndex) => {
+        const isLastWord = wordIndex === words.length - 1
+        
+        // Create wrapper span (inline-block to contain the absolute positioned underline)
+        const wordWrapper = document.createElement('span')
+        wordWrapper.style.cssText = `
+          display: inline-block;
+          position: relative;
+          padding-bottom: ${gapSize}px;
+          line-height: 1.5;
+          font-size: ${originalFontSize};
+          font-weight: ${originalFontWeight};
+          color: ${originalColor};
+        `
+        
+        // Create text span - include space after word (except last) to make underline continuous
+        const textSpan = document.createElement('span')
+        textSpan.style.cssText = `display: inline; white-space: pre; font-size: inherit; font-weight: inherit; color: inherit;`
+        textSpan.textContent = isLastWord ? word : word + ' ' // Add space inside wrapper
+        
+        // Create underline element (absolute positioned at bottom)
+        const underlineBar = document.createElement('span')
+        underlineBar.style.cssText = `
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: ${underlineHeight}px;
+          background-color: ${originalColor};
+        `
+        
+        // Assemble the structure
+        wordWrapper.appendChild(textSpan)
+        wordWrapper.appendChild(underlineBar)
+        htmlEl.appendChild(wordWrapper)
+      })
+      
+      // Log after transformation  
+      const rectAfter = htmlEl.getBoundingClientRect()
+      console.log(`🔧 Underline #${index + 1} MULTI-LINE transform:`, {
+        text: textContent.substring(0, 30),
+        method: 'word-by-word inline-block',
+        wordCount: words.length,
+        boundingRect: { width: rectAfter.width.toFixed(2), height: rectAfter.height.toFixed(2) }
+      })
+    }
+  })
+  
   // Log actual computed dimensions
   const computedStyle = window.getComputedStyle(innerContent)
   console.log('📐 Computed inner content:', {
@@ -122,13 +326,66 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
   
   // Capture the FULL content as one tall canvas
   const scale = 3
+  console.log('🎨 Starting html2canvas capture with scale:', scale)
+  console.log('🎨 Container dimensions before capture:', {
+    offsetWidth: contentContainer.offsetWidth,
+    offsetHeight: contentContainer.offsetHeight,
+    scrollHeight: contentContainer.scrollHeight
+  })
+  
   const fullContentCanvas = await html2canvas(contentContainer, {
     scale: scale,
     useCORS: true,
     allowTaint: true,
     backgroundColor: '#ffffff',
-    logging: false,
-    width: renderWidth // Force exact width
+    logging: true, // Enable html2canvas logging for debugging
+    width: renderWidth, // Force exact width
+    onclone: (clonedDoc, clonedElement) => {
+      // DEBUG: Check styles in the cloned document (what html2canvas actually renders)
+      const clonedUnderlines = clonedElement.querySelectorAll('u')
+      console.log('🎨 CLONED DOC: Found', clonedUnderlines.length, 'underline elements in clone')
+      clonedUnderlines.forEach((el, index) => {
+        // Check for our wrapper structure inside <u>
+        // Could be single wrapper (single-line) or multiple word wrappers (multi-line)
+        const allWrappers = el.querySelectorAll(':scope > span')
+        const firstWrapper = allWrappers[0]
+        const underlineBar = firstWrapper?.querySelector('span:last-child')
+        
+        if (firstWrapper && underlineBar) {
+          const wrapperComputed = clonedDoc.defaultView?.getComputedStyle(firstWrapper)
+          const barComputed = clonedDoc.defaultView?.getComputedStyle(underlineBar)
+          const isMultiWord = allWrappers.length > 1
+          console.log(`🎨 Cloned Underline #${index + 1} (${isMultiWord ? 'MULTI-WORD' : 'SINGLE'} DOM structure):`, {
+            text: el.textContent?.substring(0, 30),
+            wordWrapperCount: allWrappers.length,
+            firstWrapper: {
+              display: wrapperComputed?.display,
+              position: wrapperComputed?.position,
+              paddingBottom: wrapperComputed?.paddingBottom
+            },
+            underlineBar: {
+              position: barComputed?.position,
+              bottom: barComputed?.bottom,
+              height: barComputed?.height,
+              backgroundColor: barComputed?.backgroundColor
+            }
+          })
+        } else {
+          // Fallback - no wrapper found
+          const computed = clonedDoc.defaultView?.getComputedStyle(el)
+          console.log(`🎨 Cloned Underline #${index + 1} (NO WRAPPER - unexpected):`, {
+            text: el.textContent?.substring(0, 30),
+            display: computed?.display,
+            innerHTML: el.innerHTML.substring(0, 100)
+          })
+        }
+      })
+    }
+  })
+  
+  console.log('🎨 Canvas capture complete:', {
+    canvasWidth: fullContentCanvas.width,
+    canvasHeight: fullContentCanvas.height
   })
   
   document.body.removeChild(contentContainer)
@@ -189,6 +446,15 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
     unit: 'mm',
     format: [pdfWidthMM, pdfHeightMM]
   })
+  
+  console.log('\n📊 ===== PDF GENERATION SUMMARY =====')
+  console.log('📊 Underline elements found:', underlineElements.length)
+  console.log('📊 Total pages to generate:', numPages)
+  console.log('📊 If underlines appear without gap in PDF, check:')
+  console.log('  1. "Cloned Underline" logs - do styles match original?')
+  console.log('  2. "AFTER gradient transform" logs - is backgroundImage set?')
+  console.log('  3. Canvas dimensions - is content properly captured?')
+  console.log('=================================\n')
   
   for (let pageNum = 0; pageNum < numPages; pageNum++) {
     const pageBreak = pageBreaks[pageNum]
@@ -547,8 +813,19 @@ function getContentStyles(): string {
     .pdf-content-area em, .pdf-content-area i {
       font-style: italic;
     }
+    /* UNDERLINE FIX: html2canvas doesn't properly render padding-bottom on inline elements */
+    /* Using em units so underline scales with font size - matches PDFPreview.css */
+    /* Note: The actual rendering uses JS workaround that overrides these styles */
     .pdf-content-area u {
-      text-decoration: underline;
+      text-decoration: none;
+      border-bottom: 0.07em solid #000;
+      display: inline;
+      padding-bottom: 0.21em;
+      line-height: 1.8;
+    }
+    /* Alternative: wrap content in span with block behavior for multi-line underlines */
+    .pdf-content-area u > * {
+      display: inline;
     }
     .pdf-content-area s {
       text-decoration: line-through;

@@ -197,6 +197,8 @@ export default function PDFEditor({
       .replace(/<strong><\/strong>/g, '')
       .replace(/<em><\/em>/g, '')
       .replace(/<u><\/u>/g, '')
+      // Remove empty list items (just <br> inside) - these are gaps that shouldn't have bullets/numbers
+      .replace(/<li[^>]*>\s*<br\s*\/?>\s*<\/li>/gi, '')
       .trim()
 
     // Fix: Split lists when data-list attribute changes to restart numbering
