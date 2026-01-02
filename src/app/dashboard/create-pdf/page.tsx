@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast'
 import PDFEditor from '@/components/PDFEditor'
 import { usePDFGenerationV2 } from '@/hooks/usePDFGenerationV2'
 import '@/components/PDFPreview.css'
+import { transformUnderlineElements } from '@/lib/underlineTransform'
 
 interface PresetWithSize {
   id: string
@@ -340,6 +341,9 @@ function CreatePDFContent() {
                       dangerouslySetInnerHTML={{ __html: content }}
                       ref={(el) => {
                         if (!el || typeof document === 'undefined') return
+                        
+                        // Transform underline elements to skip descender characters
+                        transformUnderlineElements(el)
                         
                         // Fix list types based on data-list attribute
                         el.querySelectorAll('ol').forEach((ol) => {

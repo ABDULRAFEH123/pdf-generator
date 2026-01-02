@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast'
 import PDFEditor from '@/components/PDFEditor'
 import '@/components/PDFPreview.css'
 import { generatePDFFromHTML } from '@/lib/htmlToPdf'
+import { transformUnderlineElements } from '@/lib/underlineTransform'
 
 interface PDFData {
   id: string
@@ -399,6 +400,8 @@ function EditPDFContent() {
                       dangerouslySetInnerHTML={{ __html: content }}
                       ref={(el) => {
                         if (!el || typeof document === 'undefined') return
+                        // Transform underline elements to skip descender characters
+                        transformUnderlineElements(el)
                         el.querySelectorAll('ol').forEach((ol) => {
                           const firstLi = ol.querySelector('li')
                           if (firstLi && firstLi.getAttribute('data-list') === 'bullet') {

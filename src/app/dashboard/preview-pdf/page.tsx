@@ -7,6 +7,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'react-hot-toast'
 import '@/components/PDFPreview.css'
+import { transformUnderlineElements } from '@/lib/underlineTransform'
 
 interface PDFData {
   id: string
@@ -271,6 +272,8 @@ function PreviewPDFContent() {
               dangerouslySetInnerHTML={{ __html: pdfData.content }}
               ref={(el) => {
                 if (!el || typeof document === 'undefined') return
+                // Transform underline elements to skip descender characters
+                transformUnderlineElements(el)
                 el.querySelectorAll('ol').forEach((ol) => {
                   const firstLi = ol.querySelector('li')
                   if (firstLi && firstLi.getAttribute('data-list') === 'bullet') {
