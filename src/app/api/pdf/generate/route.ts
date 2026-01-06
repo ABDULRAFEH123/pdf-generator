@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     const pageHeight = pdf.internal.pageSize.getHeight()
     
     // Convert header/footer heights from pixels to mm
-    const headerHeight = (preset.header_height * 25.4) / 300
+    const headerHeight = (preset.header_height * 25.4) / 400
     const footerHeight = (preset.footer_height * 25.4) / 300
     const contentHeight = pageHeight - headerHeight - footerHeight
 

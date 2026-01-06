@@ -55,7 +55,13 @@ export default function DashboardPage() {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
   const [selectedPDFSize, setSelectedPDFSize] = useState<PDFSize | null>(null)
   const [selectedPreset, setSelectedPreset] = useState<PresetWithSize | null>(null)
-  const [activeTab, setActiveTab] = useState<string>('all')
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    // Load saved tab from localStorage on mount
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('dashboard-active-tab') || 'all'
+    }
+    return 'all'
+  })
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [presetToDelete, setPresetToDelete] = useState<PresetWithSize | null>(null)
   const [deletingPreset, setDeletingPreset] = useState(false)
@@ -72,6 +78,13 @@ export default function DashboardPage() {
       window.history.replaceState({}, '', '/dashboard')
     }
   }, [searchParams, refetchPresets])
+
+  // Save active tab to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dashboard-active-tab', activeTab)
+    }
+  }, [activeTab])
 
   const presets = presetsData?.data || []
   const pdfs = pdfsData?.pdfs || []

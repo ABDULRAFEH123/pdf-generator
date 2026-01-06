@@ -80,8 +80,8 @@ The application uses the following main tables:
 
 ## Image Requirements
 
-- **Header Images**: Must be exactly the PDF width × 300px
-- **Footer Images**: Must be exactly the PDF width × 200px
+- **Header Images**: Must be exactly the PDF width × 400px
+- **Footer Images**: Must be exactly the PDF width × 400px
 - **Supported Formats**: PNG, JPG, GIF
 - **Maximum Size**: 5MB per image
 

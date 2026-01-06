@@ -16,7 +16,7 @@ export default function ImageUpload({ type, pdfWidth, onUpload, currentImage }: 
   const [preview, setPreview] = useState<string | null>(currentImage || null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const expectedHeight = type === 'header' ? 300 : 300
+  const expectedHeight = type === 'header' ? 400 : 400
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -34,28 +34,20 @@ export default function ImageUpload({ type, pdfWidth, onUpload, currentImage }: 
       return
     }
 
-    // Create preview
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      setPreview(e.target?.result as string)
-    }
-    reader.readAsDataURL(file)
-
-    // Validate dimensions
+    // Validate dimensions BEFORE showing preview
     const img = new Image()
     img.onload = async () => {
       if (img.width !== pdfWidth || img.height !== expectedHeight) {
         toast.error(
           `${type} image must be exactly ${pdfWidth} × ${expectedHeight} pixels. Current: ${img.width} × ${img.height}`
         )
-        setPreview(null)
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
         }
         return
       }
 
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage and only show preview after successful upload
       await uploadImage(file)
     }
     img.src = URL.createObjectURL(file)
@@ -80,11 +72,21 @@ export default function ImageUpload({ type, pdfWidth, onUpload, currentImage }: 
         throw new Error(result.error || 'Upload failed')
       }
 
+      // Only set preview after successful upload
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setPreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+
       onUpload(result.url)
       toast.success(`${type} image uploaded successfully!`)
     } catch (error: any) {
       toast.error(`Failed to upload ${type} image: ${error.message}`)
       setPreview(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     } finally {
       setUploading(false)
     }
@@ -128,11 +130,13 @@ export default function ImageUpload({ type, pdfWidth, onUpload, currentImage }: 
                 </svg>
               </button>
             </div>
-            <div className="text-center">
-              <p className="text-sm text-green-600 font-medium">
-                ✓ Image dimensions are correct
-              </p>
-            </div>
+            {!uploading && (
+              <div className="text-center">
+                <p className="text-sm text-green-600 font-medium">
+                  ✓ {type === 'header' ? 'Header' : 'Footer'} image uploaded successfully
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center">

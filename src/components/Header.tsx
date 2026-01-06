@@ -11,6 +11,7 @@ export default function Header() {
 
   const handleSignOut = async () => {
     try {
+      localStorage.clear()
       await signOut()
       toast.success('Signed out successfully!')
       router.push('/')

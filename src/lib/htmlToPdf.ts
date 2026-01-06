@@ -153,11 +153,13 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
     const originalColor = computed.color
     
     // Characters with descenders that should NOT have underline
-    const descenderChars = new Set(['y', 'q', 'p', 'j', 'g', 'Y', 'Q', 'J'])
+    // COMMENTED OUT: Now showing underline under all characters including descenders
+    // const descenderChars = new Set(['y', 'q', 'p', 'j', 'g', 'Y', 'Q', 'J'])
+    const descenderChars = new Set<string>([])
     
     const textContent = htmlEl.textContent || ''
-    const gapSize = Math.max(5, Math.round(fontSize * 0.35)) // 35% of font size
-    const underlineHeight = 1
+    const gapSize = Math.max(5, Math.round(fontSize * 0.35)) // Reduced gap to move underline closer to text
+    const underlineHeight = 2 // 1px underline
     
     console.log(`🔧 Underline #${index + 1}:`, {
       text: textContent.substring(0, 30),
@@ -175,44 +177,60 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
       font-size: ${originalFontSize};
     `
     
-    // Process each character
-    for (let i = 0; i < textContent.length; i++) {
-      const char = textContent[i]
-      const hasDescender = descenderChars.has(char)
+    // Split text into words and spaces to prevent word breaking
+    const tokens = textContent.split(/(\s+)/)
+    
+    tokens.forEach(token => {
+      if (!token) return
       
-      // Create wrapper for each character
-      const charWrapper = document.createElement('span')
-      charWrapper.style.cssText = `
+      // Create word wrapper to keep word together
+      const wordWrapper = document.createElement('span')
+      wordWrapper.style.cssText = `
         display: inline-block;
-        position: relative;
-        padding-bottom: ${gapSize}px;
-        font-size: ${originalFontSize};
-        font-weight: ${originalFontWeight};
-        color: ${originalColor};
+        white-space: nowrap;
       `
       
-      // Create text span
-      const charSpan = document.createElement('span')
-      charSpan.style.cssText = 'display: inline; white-space: pre;'
-      charSpan.textContent = char
-      charWrapper.appendChild(charSpan)
-      
-      // Only add underline bar if NOT a descender character (spaces get underline)
-      if (!hasDescender) {
-        const underlineBar = document.createElement('span')
-        underlineBar.style.cssText = `
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: ${underlineHeight}px;
-          background-color: ${originalColor};
+      // Process each character in the word/space
+      for (let i = 0; i < token.length; i++) {
+        const char = token[i]
+        const hasDescender = descenderChars.has(char)
+        
+        // Create wrapper for each character
+        const charWrapper = document.createElement('span')
+        charWrapper.style.cssText = `
+          display: inline-block;
+          position: relative;
+          padding-bottom: ${gapSize}px;
+          font-size: ${originalFontSize};
+          font-weight: ${originalFontWeight};
+          color: ${originalColor};
         `
-        charWrapper.appendChild(underlineBar)
+        
+        // Create text span
+        const charSpan = document.createElement('span')
+        charSpan.style.cssText = 'display: inline; white-space: pre;'
+        charSpan.textContent = char
+        charWrapper.appendChild(charSpan)
+        
+        // Only add underline bar if NOT a descender character (spaces get underline)
+        if (!hasDescender) {
+          const underlineBar = document.createElement('span')
+          underlineBar.style.cssText = `
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: ${underlineHeight}px;
+            background-color: ${originalColor};
+          `
+          charWrapper.appendChild(underlineBar)
+        }
+        
+        wordWrapper.appendChild(charWrapper)
       }
       
-      htmlEl.appendChild(charWrapper)
-    }
+      htmlEl.appendChild(wordWrapper)
+    })
   })
   
   // Log actual computed dimensions
@@ -224,7 +242,8 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
   })
   
   // Capture the FULL content as one tall canvas
-  const scale = 3
+  // Increased scale to 5 for ultra HD quality (higher = better quality, larger file size)
+  const scale = 5
   console.log('🎨 Starting html2canvas capture with scale:', scale)
   console.log('🎨 Container dimensions before capture:', {
     offsetWidth: contentContainer.offsetWidth,
@@ -623,6 +642,9 @@ function getContentStyles(): string {
       font-size: 14px;
       line-height: 1.5;
       color: #000;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      word-break: normal;
     }
     .pdf-content-area p {
       margin: 0 0 0.5em 0;

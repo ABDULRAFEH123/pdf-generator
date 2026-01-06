@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
         pdf_size_id,
         header_image_url,
         footer_image_url,
-        header_height: header_height || 300,
-        footer_height: footer_height || 300,
+        header_height: header_height || 400,
+        footer_height: footer_height || 400,
         user_id
       }])
       .select()

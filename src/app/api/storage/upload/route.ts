@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate dimensions using sharp
-    const expectedHeight = type === 'header' ? 300 : 300
+    const expectedHeight = type === 'header' ? 400 : 400
     
     try {
       const buffer = await file.arrayBuffer()

@@ -25,8 +25,8 @@ CREATE TABLE presets (
   pdf_size_id TEXT NOT NULL REFERENCES pdf_sizes(id),
   header_image_url TEXT NOT NULL,
   footer_image_url TEXT NOT NULL,
-  header_height INTEGER NOT NULL DEFAULT 300,
-  footer_height INTEGER NOT NULL DEFAULT 200,
+  header_height INTEGER NOT NULL DEFAULT 400,
+  footer_height INTEGER NOT NULL DEFAULT 400,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE

@@ -45,8 +45,8 @@ export default function PresetForm({ pdfSize, userId, onSuccess, onCancel }: Pre
         pdf_size_id: pdfSize.id,
         header_image_url: headerImage,
         footer_image_url: footerImage,
-        header_height: 300,
-        footer_height: 300,
+        header_height: 400,
+        footer_height: 400,
         user_id: userId
       })
 
