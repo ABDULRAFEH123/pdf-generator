@@ -26,7 +26,7 @@ export function transformUnderlineElements(container: HTMLElement): void {
     
     const textContent = htmlEl.textContent || ''
     const gapEm = '0.0em' // Minimal gap for preview
-    const underlineHeightEm = '0.09em' // 1px equivalent
+    const underlineHeightEm = '1px' // 1px equivalent
     
     // Clear the element
     htmlEl.innerHTML = ''

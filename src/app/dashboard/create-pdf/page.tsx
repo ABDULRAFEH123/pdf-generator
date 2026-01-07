@@ -301,9 +301,7 @@ function CreatePDFContent() {
                 style={{
                   width: `${baseWidth}px`,
                   minHeight: `${baseHeight}px`,
-                  transform: `scale(${zoomLevel / 100})`,
-                  transformOrigin: 'top center',
-                  marginBottom: `${baseHeight * (zoomLevel / 100 - 1)}px`
+                  zoom: (zoomLevel / 100) as any
                 }}
               >
                 {/* Header */}

@@ -159,7 +159,7 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
     
     const textContent = htmlEl.textContent || ''
     const gapSize = Math.max(5, Math.round(fontSize * 0.35)) // Reduced gap to move underline closer to text
-    const underlineHeight = 2 // 1px underline
+    const underlineHeight = 1 // 1px underline
     
     console.log(`🔧 Underline #${index + 1}:`, {
       text: textContent.substring(0, 30),

@@ -241,9 +241,7 @@ function PreviewPDFContent() {
           style={{
             width: `${baseWidth}px`,
             minHeight: `${baseHeight}px`,
-            transform: `scale(${zoomScale})`,
-            transformOrigin: 'top center',
-            marginBottom: `${baseHeight * (zoomScale - 1)}px`
+            zoom: zoomScale as any
           }}
         >
           {/* Header */}
