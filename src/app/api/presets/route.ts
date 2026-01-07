@@ -47,17 +47,43 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, pdf_size_id, header_image_url, footer_image_url, header_height, footer_height, user_id } = body
 
-    if (!name || !pdf_size_id || !header_image_url || !footer_image_url || !user_id) {
+    const trimmedName = typeof name === 'string' ? name.trim() : ''
+
+    if (!trimmedName || !pdf_size_id || !header_image_url || !footer_image_url || !user_id) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       )
     }
 
+    // Prevent duplicate preset names within the same size for the same user
+    const { data: existingPreset, error: existingPresetError } = await supabaseAdmin
+      .from('presets')
+      .select('id')
+      .eq('user_id', user_id)
+      .eq('pdf_size_id', pdf_size_id)
+      .ilike('name', trimmedName)
+      .maybeSingle()
+
+    if (existingPresetError) {
+      console.error('Preset duplicate check error:', existingPresetError)
+      return NextResponse.json(
+        { error: 'Failed to validate preset name' },
+        { status: 500 }
+      )
+    }
+
+    if (existingPreset) {
+      return NextResponse.json(
+        { error: `A preset named "${trimmedName}" already exists for this size.` },
+        { status: 409 }
+      )
+    }
+
     const { data, error } = await supabaseAdmin
       .from('presets')
       .insert([{
-        name,
+        name: trimmedName,
         pdf_size_id,
         header_image_url,
         footer_image_url,

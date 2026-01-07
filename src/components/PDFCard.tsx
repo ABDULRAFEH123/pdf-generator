@@ -10,6 +10,7 @@ interface PDFCardProps {
     id: string
     content: string
     created_at: string
+    updated_at?: string
     pdf_name?: string
     presets: {
       name: string
@@ -32,6 +33,9 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
   const [downloading, setDownloading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+
+  const displayTimestamp = (pdf.updated_at && pdf.updated_at !== pdf.created_at) ? pdf.updated_at : pdf.created_at
+  const displayLabel = (pdf.updated_at && pdf.updated_at !== pdf.created_at) ? 'Edited' : 'Created'
 
   const handleDownload = async () => {
     setDownloading(true)
@@ -161,7 +165,7 @@ export default function PDFCard({ pdf, onDelete }: PDFCardProps) {
                   <span className="text-sm font-medium">{pdf.presets.pdf_sizes.name}</span>
                 </div>
                 <div className="w-1 h-1 bg-blue-200 rounded-full"></div>
-                <span className="text-sm">{formatDate(pdf.created_at)}</span>
+                <span className="text-sm">{displayLabel}: {formatDate(displayTimestamp)}</span>
               </div>
             </div>
             <div className="flex items-center space-x-2">

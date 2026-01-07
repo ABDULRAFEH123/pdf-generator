@@ -169,10 +169,11 @@ function EditPDFContent() {
 
       console.log('✅ PDF updated successfully')
       toast.success('PDF updated successfully!')
-      router.push('/dashboard')
+      router.push('/dashboard?refetch=all')
     } catch (error) {
       console.error('Save error:', error)
-      toast.error('Failed to save PDF')
+      const message = error instanceof Error ? error.message : 'Failed to save PDF'
+      toast.error(message)
     } finally {
       setSaving(false)
     }

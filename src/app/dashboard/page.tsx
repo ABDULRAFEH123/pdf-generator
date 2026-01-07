@@ -35,6 +35,8 @@ interface PDFDocument {
   id: string
   content: string
   created_at: string
+  updated_at: string
+  pdf_name?: string
   presets: {
     name: string
     header_image_url: string
@@ -72,12 +74,42 @@ export default function DashboardPage() {
   
   // Handle refetch from query params (after preset creation)
   useEffect(() => {
-    if (searchParams?.get('refetch') === 'presets') {
+    const refetch = searchParams?.get('refetch')
+    if (!refetch) return
+
+    if (refetch === 'presets') {
       refetchPresets()
-      // Clean up URL
-      window.history.replaceState({}, '', '/dashboard')
+    } else if (refetch === 'pdfs') {
+      refetchPDFs()
+    } else if (refetch === 'all') {
+      refetchPresets()
+      refetchPDFs()
     }
-  }, [searchParams, refetchPresets])
+
+    // Clean up URL
+    window.history.replaceState({}, '', '/dashboard')
+  }, [searchParams, refetchPresets, refetchPDFs])
+
+  // Refresh data when coming back to the tab/window
+  useEffect(() => {
+    const handleRefresh = () => {
+      refetchPresets()
+      refetchPDFs()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleRefresh()
+      }
+    }
+
+    window.addEventListener('focus', handleRefresh)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('focus', handleRefresh)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [refetchPresets, refetchPDFs])
 
   // Save active tab to localStorage whenever it changes
   useEffect(() => {

@@ -4,6 +4,8 @@ interface PDFDocument {
   id: string
   content: string
   created_at: string
+  updated_at: string
+  pdf_name?: string
   presets: {
     name: string
     header_image_url: string

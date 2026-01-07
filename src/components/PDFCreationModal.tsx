@@ -126,7 +126,8 @@ export default function PDFCreationModal({ preset, onClose, userId, initialConte
         window.location.reload()
       } catch (error) {
         console.error('Update error:', error)
-        toast.error('Failed to update PDF')
+        const message = error instanceof Error ? error.message : 'Failed to update PDF'
+        toast.error(message)
       } finally {
         setSaving(false)
       }

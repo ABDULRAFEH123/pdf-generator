@@ -12,6 +12,8 @@ export async function POST(request: NextRequest) {
     const pdfName = formData.get('pdfName') as string
     const pdfId = formData.get('pdfId') as string // For updating existing PDF
 
+    const trimmedPdfName = typeof pdfName === 'string' ? pdfName.trim() : ''
+
     // For new PDFs, require presetId and userId
     // For updates (pdfId provided), only require pdfId, content, pdfName
     const isUpdate = !!pdfId
@@ -46,10 +48,10 @@ export async function POST(request: NextRequest) {
 
     // Handle UPDATE of existing PDF
     if (isUpdate) {
-      // Get existing PDF to find old storage path and user_id
+      // Get existing PDF to find old storage path, user_id, and preset_id
       const { data: existingPdf, error: fetchError } = await supabaseAdmin
         .from('pdf_documents')
-        .select('storage_path, user_id')
+        .select('storage_path, user_id, preset_id')
         .eq('id', pdfId)
         .single()
 
@@ -61,6 +63,47 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // Duplicate name check (same user + same pdf size category)
+      if (trimmedPdfName) {
+        const { data: presetRow, error: presetRowError } = await supabaseAdmin
+          .from('presets')
+          .select('pdf_size_id')
+          .eq('id', existingPdf.preset_id)
+          .single()
+
+        if (presetRowError || !presetRow) {
+          console.error('Failed to fetch preset for PDF update:', presetRowError)
+          return NextResponse.json(
+            { error: 'Failed to validate PDF name' },
+            { status: 500 }
+          )
+        }
+
+        const { data: dup, error: dupErr } = await supabaseAdmin
+          .from('pdf_documents')
+          .select('id, presets!inner(pdf_size_id)')
+          .eq('user_id', existingPdf.user_id)
+          .eq('presets.pdf_size_id', presetRow.pdf_size_id)
+          .ilike('pdf_name', trimmedPdfName)
+          .neq('id', pdfId)
+          .maybeSingle()
+
+        if (dupErr) {
+          console.error('PDF duplicate check error:', dupErr)
+          return NextResponse.json(
+            { error: 'Failed to validate PDF name' },
+            { status: 500 }
+          )
+        }
+
+        if (dup) {
+          return NextResponse.json(
+            { error: `A PDF named "${trimmedPdfName}" already exists for this size.` },
+            { status: 409 }
+          )
+        }
+      }
+
       // Delete old file from storage if exists
       if (existingPdf.storage_path) {
         console.log('🗑️ Deleting old PDF from storage:', existingPdf.storage_path)
@@ -69,7 +112,7 @@ export async function POST(request: NextRequest) {
 
       // Generate new filename
       const timestamp = Date.now()
-      const sanitizedName = (pdfName || 'document').replace(/[^a-z0-9]/gi, '_').toLowerCase()
+      const sanitizedName = (trimmedPdfName || 'document').replace(/[^a-z0-9]/gi, '_').toLowerCase()
       const filename = `${existingPdf.user_id}/${sanitizedName}_${timestamp}.pdf`
 
       // Upload new PDF to storage
@@ -102,7 +145,7 @@ export async function POST(request: NextRequest) {
         .from('pdf_documents')
         .update({
           content,
-          pdf_name: pdfName,
+          pdf_name: trimmedPdfName,
           pdf_url: urlData.publicUrl,
           storage_path: filename,
           pdf_data: null // Clear any legacy base64 data
@@ -133,7 +176,7 @@ export async function POST(request: NextRequest) {
     // Verify preset exists
     const { data: preset, error: presetError } = await supabaseAdmin
       .from('presets')
-      .select('id, name')
+      .select('id, name, pdf_size_id')
       .eq('id', presetId)
       .single()
 
@@ -145,9 +188,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Duplicate name check (same user + same pdf size category)
+    if (trimmedPdfName) {
+      const { data: dup, error: dupErr } = await supabaseAdmin
+        .from('pdf_documents')
+        .select('id, presets!inner(pdf_size_id)')
+        .eq('user_id', userId)
+        .eq('presets.pdf_size_id', preset.pdf_size_id)
+        .ilike('pdf_name', trimmedPdfName)
+        .maybeSingle()
+
+      if (dupErr) {
+        console.error('PDF duplicate check error:', dupErr)
+        return NextResponse.json(
+          { error: 'Failed to validate PDF name' },
+          { status: 500 }
+        )
+      }
+
+      if (dup) {
+        return NextResponse.json(
+          { error: `A PDF named "${trimmedPdfName}" already exists for this size.` },
+          { status: 409 }
+        )
+      }
+    }
+
     // Generate unique filename
     const timestamp = Date.now()
-    const sanitizedName = (pdfName || preset.name).replace(/[^a-z0-9]/gi, '_').toLowerCase()
+    const sanitizedName = (trimmedPdfName || preset.name).replace(/[^a-z0-9]/gi, '_').toLowerCase()
     const filename = `${userId}/${sanitizedName}_${timestamp}.pdf`
 
     // Upload to Supabase Storage
@@ -182,7 +251,7 @@ export async function POST(request: NextRequest) {
         preset_id: presetId,
         content,
         user_id: userId,
-        pdf_name: pdfName || `PDF Document ${timestamp}`,
+        pdf_name: trimmedPdfName || `PDF Document ${timestamp}`,
         pdf_url: urlData.publicUrl,
         storage_path: filename
       }])

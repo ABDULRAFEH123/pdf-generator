@@ -51,7 +51,7 @@ export default function PresetForm({ pdfSize, userId, onSuccess, onCancel }: Pre
       })
 
       if (error) {
-        toast.error('Failed to create preset')
+        toast.error(error)
       } else {
         toast.success('Preset created successfully!')
         onSuccess()
