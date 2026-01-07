@@ -57,6 +57,9 @@ export default function DashboardPage() {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
   const [selectedPDFSize, setSelectedPDFSize] = useState<PDFSize | null>(null)
   const [selectedPreset, setSelectedPreset] = useState<PresetWithSize | null>(null)
+  const ITEMS_PER_PAGE = 6
+  const [presetPage, setPresetPage] = useState(1)
+  const [pdfPage, setPdfPage] = useState(1)
   const [activeTab, setActiveTab] = useState<string>(() => {
     // Load saved tab from localStorage on mount
     if (typeof window !== 'undefined') {
@@ -127,6 +130,43 @@ export default function DashboardPage() {
   // Filter presets and PDFs based on active tab
   const filteredPresets = activeTab === 'all' ? presets : presets.filter((preset: PresetWithSize) => preset.pdf_sizes.name === activeTab)
   const filteredPDFs = activeTab === 'all' ? pdfs : pdfs.filter(pdf => pdf.presets.pdf_sizes.name === activeTab)
+
+  useEffect(() => {
+    setPresetPage(1)
+    setPdfPage(1)
+  }, [activeTab])
+
+  const sortedFilteredPresets = [...filteredPresets].sort((a: PresetWithSize, b: PresetWithSize) => {
+    const bySize = String(a.pdf_sizes.name).localeCompare(String(b.pdf_sizes.name))
+    if (bySize !== 0) return bySize
+    return String(b.created_at || '').localeCompare(String(a.created_at || ''))
+  })
+
+  const presetTotalPages = Math.max(1, Math.ceil(sortedFilteredPresets.length / ITEMS_PER_PAGE))
+  const presetStartIndex = (presetPage - 1) * ITEMS_PER_PAGE
+  const pagedPresets = sortedFilteredPresets.slice(presetStartIndex, presetStartIndex + ITEMS_PER_PAGE)
+
+  useEffect(() => {
+    if (presetPage > presetTotalPages) {
+      setPresetPage(presetTotalPages)
+    }
+  }, [presetPage, presetTotalPages])
+
+  const sortedFilteredPDFs = [...filteredPDFs].sort((a: PDFDocument, b: PDFDocument) => {
+    const aTs = Date.parse(a.updated_at || a.created_at)
+    const bTs = Date.parse(b.updated_at || b.created_at)
+    return (Number.isNaN(bTs) ? 0 : bTs) - (Number.isNaN(aTs) ? 0 : aTs)
+  })
+
+  const pdfTotalPages = Math.max(1, Math.ceil(sortedFilteredPDFs.length / ITEMS_PER_PAGE))
+  const pdfStartIndex = (pdfPage - 1) * ITEMS_PER_PAGE
+  const pagedPDFs = sortedFilteredPDFs.slice(pdfStartIndex, pdfStartIndex + ITEMS_PER_PAGE)
+
+  useEffect(() => {
+    if (pdfPage > pdfTotalPages) {
+      setPdfPage(pdfTotalPages)
+    }
+  }, [pdfPage, pdfTotalPages])
 
   // useEffect(() => {
   //   // If no user after auth check, redirect to login
@@ -312,7 +352,7 @@ export default function DashboardPage() {
 
         {/* Presets organized by size */}
         <div className="space-y-8">
-          {filteredPresets.length === 0 ? (
+          {sortedFilteredPresets.length === 0 ? (
             <div className="bg-white shadow rounded-lg">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-medium text-gray-900">Your Presets</h3>
@@ -337,7 +377,7 @@ export default function DashboardPage() {
           ) : (
             // Group filtered presets by size
             Object.entries(
-              filteredPresets.reduce((acc: any, preset: PresetWithSize) => {
+              pagedPresets.reduce((acc: any, preset: PresetWithSize) => {
                 const sizeName = preset.pdf_sizes.name
                 if (!acc[sizeName]) {
                   acc[sizeName] = []
@@ -434,6 +474,28 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {sortedFilteredPresets.length > ITEMS_PER_PAGE && (
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <button
+              onClick={() => setPresetPage((p) => Math.max(1, p - 1))}
+              disabled={presetPage === 1}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <div className="text-sm text-gray-600">
+              Page {presetPage} of {presetTotalPages}
+            </div>
+            <button
+              onClick={() => setPresetPage((p) => Math.min(presetTotalPages, p + 1))}
+              disabled={presetPage === presetTotalPages}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        )}
+
         {/* Generated PDFs Section - Organized by Size */}
         <div className="mt-8 space-y-8">
           {pdfsLoading ? (
@@ -450,7 +512,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-          ) : filteredPDFs.length === 0 ? (
+          ) : sortedFilteredPDFs.length === 0 ? (
             <div className="bg-white shadow rounded-lg">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-medium text-gray-900">Generated PDFs</h3>
@@ -475,7 +537,7 @@ export default function DashboardPage() {
           ) : (
             // Group filtered PDFs by size
             Object.entries(
-              filteredPDFs.reduce((acc, pdf) => {
+              pagedPDFs.reduce((acc, pdf) => {
                 const sizeName = pdf.presets.pdf_sizes.name
                 if (!acc[sizeName]) {
                   acc[sizeName] = []
@@ -536,6 +598,29 @@ export default function DashboardPage() {
             ))
           )}
         </div>
+
+        {sortedFilteredPDFs.length > ITEMS_PER_PAGE && (
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <button
+              onClick={() => setPdfPage((p) => Math.max(1, p - 1))}
+              disabled={pdfPage === 1}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <div className="text-sm text-gray-600">
+              Page {pdfPage} of {pdfTotalPages}
+            </div>
+            <button
+              onClick={() => setPdfPage((p) => Math.min(pdfTotalPages, p + 1))}
+              disabled={pdfPage === pdfTotalPages}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        )}
+
       </div>
 
               {/* PDF Creation Modal */}
