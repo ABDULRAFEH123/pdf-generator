@@ -38,13 +38,27 @@ export const generatePDF = async (
     })
     
     console.log('📡 API Response status:', response.status, response.statusText)
-    
-    const result = await response.json()
+
+    const contentType = response.headers.get('content-type') || ''
+    const rawBody = await response.text()
+    const result: any = contentType.includes('application/json')
+      ? (() => {
+          try {
+            return JSON.parse(rawBody)
+          } catch {
+            return { error: rawBody }
+          }
+        })()
+      : { error: rawBody }
     console.log('📄 API Response data:', result)
       
     if (!response.ok) {
       console.error('❌ API Error:', result)
-      throw new Error(result.error || 'Failed to generate PDF')
+      const serverMessage =
+        (result && (result.error || result.message || result.details)) ||
+        rawBody ||
+        `${response.status} ${response.statusText}`
+      throw new Error(serverMessage)
     }
     
     console.log('✅ PDF Generated successfully! ID:', result.pdfId)

@@ -59,6 +59,13 @@ export function usePDFGenerationV2() {
       })
       console.log('✅ PDF blob generated, size:', pdfBlob.size)
 
+      const maxUploadBytes = 4 * 1024 * 1024
+      if (pdfBlob.size > maxUploadBytes) {
+        throw new Error(
+          `PDF is too large to upload (${(pdfBlob.size / (1024 * 1024)).toFixed(2)} MB). Please reduce content/images and try again.`
+        )
+      }
+
       // Step 2: Upload the PDF blob to the server
       const formData = new FormData()
       formData.append('pdf', pdfBlob, `${pdfName || 'document'}.pdf`)
@@ -73,10 +80,24 @@ export function usePDFGenerationV2() {
         body: formData,
       })
 
-      const result = await response.json()
+      const contentType = response.headers.get('content-type') || ''
+      const rawBody = await response.text()
+      const result: any = contentType.includes('application/json')
+        ? (() => {
+            try {
+              return JSON.parse(rawBody)
+            } catch {
+              return { error: rawBody }
+            }
+          })()
+        : { error: rawBody }
       
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to save PDF')
+        const serverMessage =
+          (result && (result.error || result.message || result.details)) ||
+          rawBody ||
+          `${response.status} ${response.statusText}`
+        throw new Error(serverMessage)
       }
       
       console.log('✅ PDF saved successfully:', result)
