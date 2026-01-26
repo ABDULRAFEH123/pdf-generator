@@ -243,7 +243,7 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
   
   // Capture the FULL content as one tall canvas
   // Increased scale to 5 for ultra HD quality (higher = better quality, larger file size)
-  const scale = 5
+  const scale = 2
   console.log('🎨 Starting html2canvas capture with scale:', scale)
   console.log('🎨 Container dimensions before capture:', {
     offsetWidth: contentContainer.offsetWidth,
@@ -432,7 +432,7 @@ export async function generatePDFFromHTML(options: PDFGeneratorOptions): Promise
     }
     
     // Add page to PDF
-    const imgData = pageCanvas.toDataURL('image/jpeg', 0.95)
+    const imgData = pageCanvas.toDataURL('image/jpeg', 0.82)
     pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidthMM, pdfHeightMM)
   }
   
